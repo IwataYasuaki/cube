@@ -1,25 +1,25 @@
 var camera, scene, renderer;
 var cube = [[[],[],[]],[[],[],[]],[[],[],[]]];
-//var cube = [[[],[]],[[],[]]];
-//var cube = [[[]]];
+var FLD;
 var CNUM = 3;
-var CSIZE = 12;
+var CSIZE = 10;
 var DLT = (CNUM - 1) * 0.5;
 var SPEED = 0.005;
 var FPS = 60;
 var SPF = 1000 / FPS;
+var nloaded = 0;
 var anm;
-var anmFlg;
+var anmFlg = true;
 
 window.onload = function() {
-    width = document.getElementById('canvas-frame').clientWidth;
-    height = document.getElementById('canvas-frame').clientHeight;
+    FLD = document.getElementById('canvas-frame');
+    width = FLD.clientWidth;
+    height = FLD.clientHeight;
     renderer = new THREE.WebGLRenderer({antialias: true});
     renderer.setSize(width, height);
-    document.getElementById('canvas-frame').appendChild(renderer.domElement);
     renderer.setClearColor(0xffffff, 1.0);
-    camera = new THREE.PerspectiveCamera(1, width / height, 1, 10000);
-    camera.position.set(2000, 2000, 2000);
+    camera = new THREE.PerspectiveCamera(1, width / height, 3090, 3130);
+    camera.position.set(1800, 1800, 1800);
     camera.lookAt({x: 0, y: 0, z: 0});
     scene = new THREE.Scene();
     //var light = new THREE.DirectionalLight(0xffffff);
@@ -30,13 +30,13 @@ window.onload = function() {
     scene.add(ambientLight);
     
     // load textures
-    var black = new THREE.TextureLoader().load('/assets/black.png');
-    var green = new THREE.TextureLoader().load('/assets/green.png');
-    var blue = new THREE.TextureLoader().load('/assets/blue.png');
-    var yellow = new THREE.TextureLoader().load('/assets/yellow.png');
-    var white = new THREE.TextureLoader().load('/assets/white.png');
-    var orange = new THREE.TextureLoader().load('/assets/orange.png');
-    var red = new THREE.TextureLoader().load('/assets/red.png');
+    var black = new THREE.TextureLoader().load('/assets/black.png', function(){nloaded++});
+    var green = new THREE.TextureLoader().load('/assets/green.png', function(){nloaded++});
+    var blue = new THREE.TextureLoader().load('/assets/blue.png', function(){nloaded++});
+    var yellow = new THREE.TextureLoader().load('/assets/yellow.png', function(){nloaded++});
+    var white = new THREE.TextureLoader().load('/assets/white.png', function(){nloaded++});
+    var orange = new THREE.TextureLoader().load('/assets/orange.png', function(){nloaded++});
+    var red = new THREE.TextureLoader().load('/assets/red.png', function(){nloaded++});
 
     // initialize cubes
     for(var x = 0; x < CNUM; x++){
@@ -64,9 +64,16 @@ window.onload = function() {
             }
         }
     }
-    setTimeout(function(){renderer.render(scene, camera);}, 0);
-    turn('x', 0, 1);
-    turn('x', 0, -1);
+    var tmr = setInterval(function(){
+	console.log(nloaded);
+	if(nloaded >= 7){
+	    clearInterval(tmr);
+	    FLD.innerHTML = "";
+            FLD.appendChild(renderer.domElement);
+	    renderer.render(scene, camera);
+	    anmFlg = false;
+	}
+    }, 10);
 }
 
 // turn plane
@@ -150,6 +157,6 @@ function turn(axis, val, dir){
     
     clearInterval(tmr);
     }
-    }, 100);
+    }, 10);
 }
 
