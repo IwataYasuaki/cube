@@ -1,4 +1,5 @@
 var camera, scene, renderer;
+var WIDTH, HEIGHT;
 var cube = [[[],[],[]],[[],[],[]],[[],[],[]]];
 var FLD;
 var CNUM = 3;
@@ -10,15 +11,28 @@ var SPF = 1000 / FPS;
 var nloaded = 0;
 var anm;
 var anmFlg = true;
+var raycaster;
+var pickFlg = false;
+var mouse0;
+var mouse1;
+var offset;
+var objects = [];
+
+var black, green, blue, yellow, white, orange, red;
 
 window.onload = function() {
+    raycaster = new THREE.Raycaster();
+    mouse0 = new THREE.Vector2();
+    mouse1 = new THREE.Vector2();
+    offset = new THREE.Vector3();
+
     FLD = document.getElementById('canvas-frame');
-    width = FLD.clientWidth;
-    height = FLD.clientHeight;
+    WIDTH = FLD.clientWidth;
+    HEIGHT = FLD.clientHeight;
     renderer = new THREE.WebGLRenderer({antialias: true});
-    renderer.setSize(width, height);
+    renderer.setSize(WIDTH, HEIGHT);
     renderer.setClearColor(0xffffff, 1.0);
-    camera = new THREE.PerspectiveCamera(1, width / height, 3090, 3130);
+    camera = new THREE.PerspectiveCamera(1, WIDTH / HEIGHT, 3090, 3140);
     camera.position.set(1800, 1800, 1800);
     camera.lookAt({x: 0, y: 0, z: 0});
     scene = new THREE.Scene();
@@ -30,20 +44,20 @@ window.onload = function() {
     scene.add(ambientLight);
     
     // load textures
-    var black = new THREE.TextureLoader().load('/assets/black.png', function(){nloaded++});
-    var green = new THREE.TextureLoader().load('/assets/green.png', function(){nloaded++});
-    var blue = new THREE.TextureLoader().load('/assets/blue.png', function(){nloaded++});
-    var yellow = new THREE.TextureLoader().load('/assets/yellow.png', function(){nloaded++});
-    var white = new THREE.TextureLoader().load('/assets/white.png', function(){nloaded++});
-    var orange = new THREE.TextureLoader().load('/assets/orange.png', function(){nloaded++});
-    var red = new THREE.TextureLoader().load('/assets/red.png', function(){nloaded++});
+    black = new THREE.TextureLoader().load('/assets/black.png', function(){nloaded++});
+    green = new THREE.TextureLoader().load('/assets/green.png', function(){nloaded++});
+    blue = new THREE.TextureLoader().load('/assets/blue.png', function(){nloaded++});
+    yellow = new THREE.TextureLoader().load('/assets/yellow.png', function(){nloaded++});
+    white = new THREE.TextureLoader().load('/assets/white.png', function(){nloaded++});
+    orange = new THREE.TextureLoader().load('/assets/orange.png', function(){nloaded++});
+    red = new THREE.TextureLoader().load('/assets/red.png', function(){nloaded++});
 
     // initialize cubes
     for(var x = 0; x < CNUM; x++){
         for(var y = 0; y < CNUM; y++){
             for(var z = 0; z < CNUM; z++){
-                var geometry = new THREE.BoxGeometry(CSIZE, CSIZE, CSIZE);
-                var materials = [
+                var geometry = new THREE.PlaneGeometry(CSIZE, CSIZE, 2);
+                /*var materials = [
                     new THREE.MeshLambertMaterial({map: black}),
                     new THREE.MeshLambertMaterial({map: black}),
                     new THREE.MeshLambertMaterial({map: black}),
@@ -57,15 +71,65 @@ window.onload = function() {
                 if(y == CNUM - 1) materials[2] = new THREE.MeshLambertMaterial({map: white});
                 if(z == 0) materials[5] = new THREE.MeshLambertMaterial({map: orange});
                 if(z == CNUM - 1) materials[4] = new THREE.MeshLambertMaterial({map: red});
-                var material= new THREE.MeshFaceMaterial(materials);
-                cube[x][y][z] = new THREE.Mesh( geometry, material );
+                var material= new THREE.MeshFaceMaterial(materials);*/
+		cube[x][y][z] = new THREE.Object3D();
+
+		var material = new THREE.MeshLambertMaterial({map: orange});
+		var c = new THREE.Mesh(geometry, material);
+		c.position.set(0, 0, -CSIZE/2);
+		c.quaternion.set(0, 1, 0, 0).normalize();
+		c.name = "orange";
+		c.normal = new THREE.Vector3(0, 0, -1);
+                cube[x][y][z].add(c);
+		objects.push(c);
+
+		material = new THREE.MeshLambertMaterial({map: blue});
+		c = new THREE.Mesh(geometry, material);
+		c.position.set(CSIZE/2, 0, 0);
+		c.quaternion.set(0, 1, 0, 1).normalize();
+		c.normal = new THREE.Vector3(1, 0, 0);
+                cube[x][y][z].add(c);
+		objects.push(c);
+
+		material = new THREE.MeshLambertMaterial({map: red});
+		c = new THREE.Mesh(geometry, material);
+		c.position.set(0, 0, CSIZE/2);
+		c.quaternion.set(0, 0, 0, 1);
+		c.normal = new THREE.Vector3(0, 0, 1);
+                cube[x][y][z].add(c);
+		objects.push(c);
+
+		material = new THREE.MeshLambertMaterial({map: green});
+		c = new THREE.Mesh(geometry, material);
+		c.position.set(-CSIZE/2, 0, 0);
+		c.quaternion.set(0, 1, 0, -1).normalize();
+		c.normal = new THREE.Vector3(-1, 0, 0);
+                cube[x][y][z].add(c);
+		objects.push(c);
+
+		material = new THREE.MeshLambertMaterial({map: white});
+		c = new THREE.Mesh(geometry, material);
+		c.position.set(0, CSIZE/2, 0);
+		c.quaternion.set(1, 0, 0, -1).normalize();
+		c.normal = new THREE.Vector3(0, 1, 0);
+                cube[x][y][z].add(c);
+		objects.push(c);
+
+		material = new THREE.MeshLambertMaterial({map: yellow});
+		c = new THREE.Mesh(geometry, material);
+		c.position.set(0, -CSIZE/2, 0);
+		c.quaternion.set(1, 0, 0, 1).normalize();
+		c.normal = new THREE.Vector3(0, -1, 0);
+                cube[x][y][z].add(c);
+		objects.push(c);
+
                 cube[x][y][z].position.set((x - DLT) * CSIZE, (y - DLT) * CSIZE, (z - DLT) * CSIZE);
                 scene.add(cube[x][y][z]);
             }
         }
     }
     var tmr = setInterval(function(){
-	console.log(nloaded);
+	//console.log(nloaded);
 	if(nloaded >= 7){
 	    clearInterval(tmr);
 	    FLD.innerHTML = "";
@@ -74,6 +138,10 @@ window.onload = function() {
 	    anmFlg = false;
 	}
     }, 10);
+
+    FLD.addEventListener('mousemove', onDocumentMouseMove, false);
+    FLD.addEventListener('mousedown', onDocumentMouseDown, false);
+    FLD.addEventListener('mouseup', onDocumentMouseUp, false);
 }
 
 // turn plane
@@ -160,3 +228,136 @@ function turn(axis, val, dir){
     }, 10);
 }
 
+function onDocumentMouseMove(e){
+    e.preventDefault();
+    raycaster.setFromCamera(mouse0, camera);
+}
+
+function onDocumentMouseDown(e){
+    e.preventDefault();
+    mouse0.x = (e.clientX / WIDTH) * 2 - 1;
+    mouse0.y = -(e.clientY / HEIGHT) * 2 + 1;
+    raycaster.setFromCamera(mouse0, camera);
+    var intersects = raycaster.intersectObjects(objects);
+    if(intersects.length > 0){
+	pickFlg = true;
+	clickedPlane = intersects[0].object;
+    }
+}
+
+function onDocumentMouseUp(e){
+    e.preventDefault();
+    mouse1.x = (e.clientX / WIDTH) * 2 - 1;
+    mouse1.y = -(e.clientY / HEIGHT) * 2 + 1;
+    var dx = mouse1.x - mouse0.x;
+    var dy = mouse1.y - mouse0.y;
+    //console.log(mouse0, mouse1);
+    //console.log(dx, dy);
+    if(pickFlg){
+	//clickedPlane.material = new THREE.MeshLambertMaterial({map: black});
+	var axis;
+	var val;
+	var normal = clickedPlane.normal.clone();
+	var nrml = normal.applyQuaternion(clickedPlane.parent.quaternion);
+	//console.log(nrml);
+	if(nrml.x > 0.9){
+	    if(dy < 1.732 * dx && dy > -0.577 * dx){
+		turn("y", clickedPlane.parent.position.y/CSIZE+2, 1);
+	    }else if(dy > 1.732 * dx && dy > -0.577 * dx){
+		turn("z", clickedPlane.parent.position.z/CSIZE+2, 1);
+	    }else if(dy > 1.732 * dx && dy < -0.577 * dx){
+		turn("y", clickedPlane.parent.position.y/CSIZE+2, -1);
+	    }else if(dy < 1.732 * dx && dy < -0.577 * dx){
+		turn("z", clickedPlane.parent.position.z/CSIZE+2, -1);
+	    }
+	}else if(nrml.y > 0.9){
+	    if(dx > 0 && dy > 0){
+		turn("x", clickedPlane.parent.position.x/CSIZE+2, -1);
+	    }else if(dx < 0 && dy > 0){
+		turn("z", clickedPlane.parent.position.z/CSIZE+2, 1);
+	    }else if(dx < 0 && dy < 0){
+		turn("x", clickedPlane.parent.position.x/CSIZE+2, 1);
+	    }else if(dx > 0 && dy < 0){
+		turn("z", clickedPlane.parent.position.z/CSIZE+2, -1);
+	    }
+	}else if(nrml.z > 0.9){
+	    if(dy < 0.577 * dx && dy > -1.732 * dx){
+		turn("y", clickedPlane.parent.position.y/CSIZE+2, 1);
+	    }else if(dy > 0.577 * dx && dy > -1.732 * dx){
+		turn("x", clickedPlane.parent.position.x/CSIZE+2, -1);
+	    }else if(dy > 0.577 * dx && dy < -1.732 * dx){
+		turn("y", clickedPlane.parent.position.y/CSIZE+2, -1);
+	    }else if(dy < 0.577 * dx && dy < -1.732 * dx){
+		turn("x", clickedPlane.parent.position.x/CSIZE+2, 1);
+	    }
+	}
+	pickFlg = false;
+    }else{
+	if(mouse0.y < 0.577 * mouse0.x && mouse0.y > -0.577 * mouse0.x){
+	    if(dx > 0 && dy > 0){
+		turn("y", 0, 1);
+	    }else if(dx < 0 && dy > 0){
+		turn("z", 0, 1);
+	    }else if(dx < 0 && dy < 0){
+		turn("y", 0, -1);
+	    }else if(dx > 0 && dy < 0){
+		turn("z", 0, -1);
+	    }
+	}
+	if(mouse0.y > 0.577 * mouse0.x && mouse0.x > 0){
+	    if(dy < 1.732 * dx && dy > -0.577 * dx){
+		turn("x", 0, -1);
+	    }else if(dy > 1.732 * dx && dy > -0.577 * dx){
+		turn("z", 0, 1);
+	    }else if(dy > 1.732 * dx && dy < -0.577 * dx){
+		turn("x", 0, 1);
+	    }else if(dy < 1.732 * dx && dy < -0.577 * dx){
+		turn("z", 0, -1);
+	    }
+	}
+	if(mouse0.y > -0.577 * mouse0.x && mouse0.x < 0){
+	    if(dy < -1.732 * dx && dy > 0.577 * dx){
+		turn("z", 0, 1);
+	    }else if(dy > -1.732 * dx && dy > 0.577 * dx){
+		turn("x", 0, -1);
+	    }else if(dy > -1.732 * dx && dy < 0.577 * dx){
+		turn("z", 0, -1);
+	    }else if(dy < -1.732 * dx && dy < 0.577 * dx){
+		turn("x", 0, 1);
+	    }
+	}
+	if(mouse0.y > 0.577 * mouse0.x && mouse0.y < -0.577 * mouse0.x){
+	    if(dx > 0 && dy > 0){
+		turn("x", 0, -1);
+	    }else if(dx < 0 && dy > 0){
+		turn("y", 0, -1);
+	    }else if(dx < 0 && dy < 0){
+		turn("x", 0, 1);
+	    }else if(dx > 0 && dy < 0){
+		turn("y", 0, 1);
+	    }
+	}
+	if(mouse0.y < 0.577 * mouse0.x && mouse0.x < 0){
+	    if(dy < 1.732 * dx && dy > -0.577 * dx){
+		turn("y", 0, 1);
+	    }else if(dy > 1.732 * dx && dy > -0.577 * dx){
+		turn("x", 0, -1);
+	    }else if(dy > 1.732 * dx && dy < -0.577 * dx){
+		turn("y", 0, -1);
+	    }else if(dy < 1.732 * dx && dy < -0.577 * dx){
+		turn("x", 0, 1);
+	    }
+	}
+	if(mouse0.y < -0.577 * mouse0.x && mouse0.x > 0){
+	    if(dy < -1.732 * dx && dy > 0.577 * dx){
+		turn("y", 0, -1);
+	    }else if(dy > -1.732 * dx && dy > 0.577 * dx){
+		turn("z", 0, 1);
+	    }else if(dy > -1.732 * dx && dy < 0.577 * dx){
+		turn("y", 0, 1);
+	    }else if(dy < -1.732 * dx && dy < 0.577 * dx){
+		turn("z", 0, -1);
+	    }
+	}
+    }
+}
