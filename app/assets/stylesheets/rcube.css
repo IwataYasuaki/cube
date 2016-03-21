@@ -1,17 +1,12 @@
 body {
-    padding: 0px;
+    -webkit-text-size-adjust: 100%;
     margin: 0px;
-    overflow: hidden;
+    /*overflow: hidden;*/
 }
 
 div#canvas-frame {
-    border: 1px solid;
+    border: 0px solid;
     cursor: pointer;
-    width: 500px;
-    height: 500px;
-    text-align: center;
 }
 
-div#canvas-frame p {
-    line-height: 400px;
-}
+
