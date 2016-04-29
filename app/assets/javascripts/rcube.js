@@ -17,6 +17,7 @@ var pickFlg = false;
 var clickFlg = false;
 var clickedPlane;
 var timeFlg = true;
+var tmr2;
 var t0;
 var mouse0;
 var mouse1;
@@ -205,6 +206,7 @@ function judgeClear(){
 	    }
 	}
     }
+    stopTime();
     alert("clear");
 }
 
@@ -223,17 +225,7 @@ function onDocumentMouseDown(e){
 
     // time
     if(timeFlg){
-	timeFlg = false;
-	t0 = new Date();
-	var tmr2 = setInterval(function(){
-	    var t = new Date().getTime() - t0.getTime();
-	    var h = Math.floor(t / 3600000);
-	    var m = Math.floor((t - h * 3600000) / 60000);
-	    var s = Math.floor((t - h * 3600000 - m * 60000) / 1000);
-	    var ms = t - h * 3600000 - m * 60000 - s * 1000;
-	    var disptime = ("0" + m).slice(-2) + "'" + ("0" + s).slice(-2) + '"' + ("00" + ms).slice(-3);
-	    document.getElementById('time').innerHTML = disptime;
-	}, 1)
+	startTime();
     }
     
     // find clicked face
@@ -360,5 +352,24 @@ function onDocumentMouseUp(e){
 	}
     }
     clickFlg = false;
+}
+
+function startTime(){
+    timeFlg = false;
+    t0 = new Date();
+    tmr2 = setInterval(function(){
+	var t = new Date().getTime() - t0.getTime();
+	var h = Math.floor(t / 3600000);
+	var m = Math.floor((t - h * 3600000) / 60000);
+	var s = Math.floor((t - h * 3600000 - m * 60000) / 1000);
+	var ms = t - h * 3600000 - m * 60000 - s * 1000;
+	var disptime = ("0" + m).slice(-2) + "'" + ("0" + s).slice(-2) + '"' + ("00" + ms).slice(-3);
+	document.getElementById('time').innerHTML = disptime;
+    }, 1)
+}
+
+function stopTime(){
+    timeFlg = true;
+    clearInterval(tmr2);
 }
 
