@@ -50,13 +50,27 @@ window.onload = function() {
         for(var y = 0; y < CNUM; y++){
             for(var z = 0; z < CNUM; z++){
 		cube[x][y][z] = new THREE.Object3D();
-		addFace(x, y, z, "z", 0, orange, [0, 0, -CSIZE / 2], [0, 1, 0, 0] , [0, 0, -1]);
-		addFace(x, y, z, "x", 2, blue  , [CSIZE / 2, 0, 0] , [0, 1, 0, 1] , [1, 0, 0] );
-		addFace(x, y, z, "z", 2, red   , [0, 0, CSIZE / 2] , [0, 0, 0, 1] , [0, 0, 1] );
-		addFace(x, y, z, "x", 0, green , [-CSIZE / 2, 0, 0], [0, 1, 0, -1], [-1, 0, 0]);
-		addFace(x, y, z, "y", 2, white , [0, CSIZE / 2, 0] , [1, 0, 0, -1], [0, 1, 0] );
-		addFace(x, y, z, "y", 0, yellow, [0, -CSIZE / 2, 0], [1, 0, 0, 1] , [0, -1, 0]);
+		addFace(x, y, z, "z", 0       , orange, [0, 0, -CSIZE / 2], [0, 1, 0, 0] , [0, 0, -1]);
+		addFace(x, y, z, "x", CNUM - 1, blue  , [CSIZE / 2, 0, 0] , [0, 1, 0, 1] , [1, 0, 0] );
+		addFace(x, y, z, "z", CNUM - 1, red   , [0, 0, CSIZE / 2] , [0, 0, 0, 1] , [0, 0, 1] );
+		addFace(x, y, z, "x", 0       , green , [-CSIZE / 2, 0, 0], [0, 1, 0, -1], [-1, 0, 0]);
+		addFace(x, y, z, "y", CNUM - 1, white , [0, CSIZE / 2, 0] , [1, 0, 0, -1], [0, 1, 0] );
+		addFace(x, y, z, "y", 0       , yellow, [0, -CSIZE / 2, 0], [1, 0, 0, 1] , [0, -1, 0]);
                 cube[x][y][z].position.set((x - DLT) * CSIZE, (y - DLT) * CSIZE, (z - DLT) * CSIZE);
+		if(z == 0 && y != 0 && y != CNUM - 1 && x != 0 && x != CNUM - 1){
+		    cube[x][y][z].colorFaceIndex = 0;
+		}else if(x == CNUM - 1 && y != 0 && y != CNUM - 1 && z != 0 && z != CNUM - 1){
+		    cube[x][y][z].colorFaceIndex = 1;
+		}else if(z == CNUM - 1 && y != 0 && y != CNUM - 1 && x != 0 && x != CNUM - 1){
+		    cube[x][y][z].colorFaceIndex = 2;
+		}else if(x == 0 && y != 0 && y != CNUM - 1 && z != 0 && z != CNUM - 1){
+		    cube[x][y][z].colorFaceIndex = 3;
+		}else if(y == CNUM - 1 && z != 0 && z != CNUM - 1 && x != 0 && x != CNUM - 1){
+		    cube[x][y][z].colorFaceIndex = 4;
+		}else if(y == 0 && z != 0 && z != CNUM - 1 && x != 0 && x != CNUM - 1){
+		    cube[x][y][z].colorFaceIndex = 5;
+		}
+		console.log(x + "," + y + "," + z + " " + cube[x][y][z].colorFaceIndex);
                 scene.add(cube[x][y][z]);
             }
         }
@@ -145,12 +159,11 @@ function turn(axis, val, dir){
 
 	    // animate turn
 	    anm = setInterval(function(){
+		var rad = 0.5 * Math.PI * t * SPF * SPEED;
 		if(t > 1 / SPF / SPEED){
-		    var rad = 0.5 * Math.PI;
+		    rad = 0.5 * Math.PI;
 		    anmFlg = false;
 		    clearInterval(anm);
-		} else {
-		    var rad = 0.5 * Math.PI * t * SPF * SPEED;
 		}
 		for(var i = 0; i < c.length; i++){
 		    var p = cube[c[i].x][c[i].y][c[i].z].position;
@@ -190,24 +203,44 @@ function judgeClear(){
     normal = c.children[1].normal.clone();
     normal.applyQuaternion(c.quaternion);
     target0 += ", " + Math.round(normal.x) + ", " + Math.round(normal.y) + ", " + Math.round(normal.z);
+    //console.log("----");
+    //console.log("*" + target0);
     for(var x = 0; x < CNUM; x++){
 	for(var y = 0; y < CNUM; y++){
 	    for(var z = 0; z < CNUM; z++){
 		var c = cube[x][y][z];		
-		normal = c.children[0].normal.clone();
-		normal.applyQuaternion(c.quaternion);
-		var target = Math.round(normal.x) + ", " + Math.round(normal.y) + ", " + Math.round(normal.z);
-		normal = c.children[1].normal.clone();
-		normal.applyQuaternion(c.quaternion);
-		target += ", " + Math.round(normal.x) + ", " + Math.round(normal.y) + ", " + Math.round(normal.z);
-		if(target != target0){
-		    return;
+		if(z == 0 && y != 0 && y != CNUM - 1 && x != 0 && x != CNUM - 1 ||
+		   x == CNUM - 1 && y != 0 && y != CNUM - 1 && z != 0 && z != CNUM - 1 ||
+		   z == CNUM - 1 && y != 0 && y != CNUM - 1 && x != 0 && x != CNUM - 1 ||
+		   x == 0 && y != 0 && y != CNUM - 1 && z != 0 && z != CNUM - 1 ||
+		   y == CNUM - 1 && z != 0 && z != CNUM - 1 && x != 0 && x != CNUM - 1 ||
+		   y == 0 && z != 0 && z != CNUM - 1 && x != 0 && x != CNUM - 1){
+		    normal = c.children[c.colorFaceIndex].normal.clone();
+		    normal.applyQuaternion(c.quaternion);
+		    var target = Math.round(normal.x) + ", " + Math.round(normal.y) + ", " + Math.round(normal.z);
+		    var normalc = cube[0][0][0].children[cube[x][y][z].colorFaceIndex].normal.clone();
+		    normalc.applyQuaternion(cube[0][0][0].quaternion);
+		    var targetc = Math.round(normal.x) + ", " + Math.round(normal.y) + ", " + Math.round(normal.z);
+		    if(target != targetc){
+			return;
+		    }
+		} else {
+		    normal = c.children[0].normal.clone();
+		    normal.applyQuaternion(c.quaternion);
+		    var target = Math.round(normal.x) + ", " + Math.round(normal.y) + ", " + Math.round(normal.z);
+		    normal = c.children[1].normal.clone();
+		    normal.applyQuaternion(c.quaternion);
+		    target += ", " + Math.round(normal.x) + ", " + Math.round(normal.y) + ", " + Math.round(normal.z);
+		    if(target != target0){
+			return;
+		    }
 		}
 	    }
 	}
     }
     stopTime();
-    alert("clear");
+    //alert("clear");
+    console.log("clear");
 }
 
 function onDocumentMouseMove(e){
@@ -222,6 +255,7 @@ function onDocumentMouseMove(e){
 
 function onDocumentMouseDown(e){
     e.preventDefault();
+    clickFlg = true;
 
     // time
     if(timeFlg){
@@ -237,11 +271,11 @@ function onDocumentMouseDown(e){
 	pickFlg = true;
 	clickedPlane = intersects[0].object;
     }
-    clickFlg = true;
 }
 
 function onDocumentMouseUp(e){
     e.preventDefault();
+    clickFlg = false;
     mouse1.x = (e.pageX / WIDTH) * 2 - 1;
     mouse1.y = -(e.pageY / HEIGHT) * 2 + 1;
     var dx = mouse1.x - mouse0.x;
@@ -251,6 +285,9 @@ function onDocumentMouseUp(e){
 	var val;
 	var normal = clickedPlane.normal.clone();
 	normal.applyQuaternion(clickedPlane.parent.quaternion);
+	var target = Math.round(normal.x) + ", " + Math.round(normal.y) + ", " + Math.round(normal.z);
+	var ttt = clickedPlane.parent.position;
+	console.log("touch -> " + target + "    " + ttt.x + ", " + ttt.y + ", " + ttt.z);
 	if(normal.x > 0.9){
 	    if(dy < 1.732 * dx && dy > -0.577 * dx){
 		turn("y", clickedPlane.parent.position.y/CSIZE+2, 1);
@@ -351,7 +388,6 @@ function onDocumentMouseUp(e){
 	    }
 	}
     }
-    clickFlg = false;
 }
 
 function startTime(){
