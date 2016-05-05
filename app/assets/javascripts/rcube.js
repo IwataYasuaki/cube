@@ -239,7 +239,7 @@ function judgeClear(){
 	}
     }
     stopTime();
-    //alert("clear");
+    alert("clear");
     console.log("clear");
 }
 
