@@ -1,6 +1,13 @@
+/*
+課題
+・元に戻すボタン
+*/
+
+
 var camera, scene, renderer;
 var WIDTH, HEIGHT;
 var cube = [[[],[],[]],[[],[],[]],[[],[],[]]];
+var c0 = [];
 var FLD;
 var CNUM = 3;
 var CSIZE = 10;
@@ -12,16 +19,22 @@ var SPF = 1000 / FPS;
 var nloaded = 0;
 var anm;
 var anmFlg = true;
+var rate;
 var raycaster;
 var pickFlg = false;
 var clickFlg = false;
+var dragFlg = false;
+var turnDirFlg = false;
 var clickedPlane;
+var clickedPlaneNormal;
 var timeFlg = true;
+var turnAxis = "";
 var tmr2;
 var t0;
 var mouse0;
 var mouse1;
 var planes = [];
+var R3 = Math.sqrt(3);
 
 var black, green, blue, yellow, white, orange, red;
 
@@ -70,7 +83,7 @@ window.onload = function() {
 		}else if(y == 0 && z != 0 && z != CNUM - 1 && x != 0 && x != CNUM - 1){
 		    cube[x][y][z].colorFaceIndex = 5;
 		}
-		console.log(x + "," + y + "," + z + " " + cube[x][y][z].colorFaceIndex);
+		//console.log(x + "," + y + "," + z + " " + cube[x][y][z].colorFaceIndex);
                 scene.add(cube[x][y][z]);
             }
         }
@@ -128,71 +141,151 @@ window.onload = function() {
 // val  = 0 or 1 or ... or (CNUM - 1)
 // dir  = 1 or -1
 function turn(axis, val, dir){
-    var tmr = setInterval(function(){
-
 	// calculate goal of quaternion (q1)
 	if(!anmFlg){
-	    anmFlg = true;
-	    var tval = (val - 1 - DLT) * CSIZE;
-	    var c = [];
-	    for(var x = 0; x < CNUM; x++){
-		for(var y = 0; y < CNUM; y++){
-		    for(var z = 0; z < CNUM; z++){
-			var p = cube[x][y][z].position;
-			var q = cube[x][y][z].quaternion;
-			var p0 = p.clone();
-			var q0 = q.clone();
-			if(axis == "x" && (p.x == tval || val == 0)){
-			    var q1 = new THREE.Quaternion().set(1, 0, 0, dir).normalize().multiply(q.clone());
-			    c.push({x: x, y: y, z: z, p0: p0, q0: q0, q1: q1});
-			} else if (axis == "y" && (p.y == tval || val == 0)){
-			    var q1 = new THREE.Quaternion().set(0, 1, 0, dir).normalize().multiply(q.clone());
-			    c.push({x: x, y: y, z: z, p0: p0, q0: q0, q1: q1});
-			} else if (axis == "z" && (p.z == tval || val == 0)){
-			    var q1 = new THREE.Quaternion().set(0, 0, 1, dir).normalize().multiply(q.clone());
-			    c.push({x: x, y: y, z: z, p0: p0, q0: q0, q1: q1});
-			}
-		    }
-		}
-	    }
-	    var t = 0
-
+	    var t = rate / SPF / SPEED;
+	    var turnFinishFlg = false;
 	    // animate turn
 	    anm = setInterval(function(){
 		var rad = 0.5 * Math.PI * t * SPF * SPEED;
-		if(t > 1 / SPF / SPEED){
-		    rad = 0.5 * Math.PI;
+		if(Math.abs(t) > 1 / SPF / SPEED){
+		    turnFinishFlg = true;
+		    rad = t > 0 ? 0.5 * Math.PI : -0.5 * Math.PI;
 		    anmFlg = false;
 		    clearInterval(anm);
+		    t = t > 0 ? 1 / SPF / SPEED : -1 / SPF / SPEED;
 		}
-		for(var i = 0; i < c.length; i++){
-		    var p = cube[c[i].x][c[i].y][c[i].z].position;
-		    var q = cube[c[i].x][c[i].y][c[i].z].quaternion;
-		    if(axis == "x" && (p.x == tval || val == 0)){
-			p.y = Math.round(c[i].p0.y * Math.cos(dir * rad) - c[i].p0.z * Math.sin(dir * rad));
-			p.z = Math.round(c[i].p0.z * Math.cos(dir * rad) + c[i].p0.y * Math.sin(dir * rad));
-		    } else if (axis == "y" && (p.y == tval || val == 0)){
-			p.z = Math.round(c[i].p0.z * Math.cos(dir * rad) - c[i].p0.x * Math.sin(dir * rad));
-			p.x = Math.round(c[i].p0.x * Math.cos(dir * rad) + c[i].p0.z * Math.sin(dir * rad));
-		    } else if (axis == "z" && (p.z == tval || val == 0)){
-			p.x = Math.round(c[i].p0.x * Math.cos(dir * rad) - c[i].p0.y * Math.sin(dir * rad));
-			p.y = Math.round(c[i].p0.y * Math.cos(dir * rad) + c[i].p0.x * Math.sin(dir * rad));
+		//console.log("t = "+t);
+		for(var i = 0; i < c0.length; i++){
+		    var p = cube[c0[i].x][c0[i].y][c0[i].z].position;
+		    var q = cube[c0[i].x][c0[i].y][c0[i].z].quaternion;
+		    if(axis == "x"){
+			p.y = c0[i].p0.y * Math.cos(dir * rad) - c0[i].p0.z * Math.sin(dir * rad);
+			p.z = c0[i].p0.z * Math.cos(dir * rad) + c0[i].p0.y * Math.sin(dir * rad);
+		    } else if (axis == "y"){
+			p.z = c0[i].p0.z * Math.cos(dir * rad) - c0[i].p0.x * Math.sin(dir * rad);
+			p.x = c0[i].p0.x * Math.cos(dir * rad) + c0[i].p0.z * Math.sin(dir * rad);
+		    } else if (axis == "z"){
+			p.x = c0[i].p0.x * Math.cos(dir * rad) - c0[i].p0.y * Math.sin(dir * rad);
+			p.y = c0[i].p0.y * Math.cos(dir * rad) + c0[i].p0.x * Math.sin(dir * rad);
 		    }
-		    if(t > 1 / SPF / SPEED){
-			q.copy(c[i].q1);
-		    } else {
-			THREE.Quaternion.slerp(c[i].q0, c[i].q1, q, t * SPF * SPEED);
+		    THREE.Quaternion.slerp(c0[i].q0, c0[i].q1, q, t * SPF * SPEED);
+		    if(turnFinishFlg){
+			p.x = Math.round(p.x * 1000000) / 1000000;
+			p.y = Math.round(p.y * 1000000) / 1000000;
+			p.z = Math.round(p.z * 1000000) / 1000000;
+			q.x = qcorrect(q.x);
+			q.y = qcorrect(q.y);
+			q.z = qcorrect(q.z);
+			q.w = qcorrect(q.w);
 		    }
 		}
 		renderer.render(scene, camera);
-		if(t > 1 / SPF / SPEED){
+		if(turnFinishFlg){
+		    console.log(cube[2][0][0].quaternion);
+		    /*console.log(cube[2][0][0].quaternion);
+		    console.log(cube[2][0][1].quaternion);
+		    console.log(cube[2][0][2].quaternion);
+		    console.log(cube[2][1][0].quaternion);
+		    console.log(cube[2][1][1].quaternion);
+		    console.log(cube[2][1][2].quaternion);
+		    console.log(cube[2][2][0].quaternion);
+		    console.log(cube[2][2][1].quaternion);
+		    console.log(cube[2][2][2].quaternion);
+		    var w = cube[0][0][0].children[0].normal.clone();
+		    console.log(w.applyQuaternion(cube[2][0][0].quaternion));
+		    w = cube[0][0][0].children[0].normal.clone();
+		    console.log(w.applyQuaternion(cube[2][0][1].quaternion));
+		    w = cube[0][0][0].children[0].normal.clone();
+		    console.log(w.applyQuaternion(cube[2][0][2].quaternion));
+		    w = cube[0][0][0].children[0].normal.clone();
+		    console.log(w.applyQuaternion(cube[2][1][0].quaternion));
+		    w = cube[0][0][0].children[0].normal.clone();
+		    console.log(w.applyQuaternion(cube[2][1][1].quaternion));
+		    w = cube[0][0][0].children[0].normal.clone();
+		    console.log(w.applyQuaternion(cube[2][1][2].quaternion));
+		    w = cube[0][0][0].children[0].normal.clone();
+		    console.log(w.applyQuaternion(cube[2][2][0].quaternion));
+		    w = cube[0][0][0].children[0].normal.clone();
+		    console.log(w.applyQuaternion(cube[2][2][1].quaternion));
+		    w = cube[0][0][0].children[0].normal.clone();
+		    console.log(w.applyQuaternion(cube[2][2][2].quaternion));*/
 		    judgeClear();
+		    c0 = [];
 		}
-		t++
+		//t += t / Math.abs(t);
+		//t++;
+		t > 0 ? t++ : t--;
+		//console.log(t)
+		//console.log("*"+cube[1][1][2].position.x+","+cube[1][1][2].position.z);
+		//console.log(cube[1][1][2].quaternion);
+		//alert();
 	    }, SPF);
-	    clearInterval(tmr);
 	}
-    }, 10);
+}
+
+function qcorrect(qelement){
+    var elm = Math.round(qelement * 10) / 10;
+    if([0, 1, -1, 0.5, -0.5].includes(elm)){
+	return elm;
+    }else if(elm == 0.7){
+	return 1 / Math.sqrt(2);
+    }else if(elm == -0.7){
+	return -1 / Math.sqrt(2);
+    }
+    return qelement;
+}
+       
+function dragTurn(axis, val, dir){
+    if(!dragFlg){
+	// calculate goal of quaternion (q1)
+	dragFlg = true;
+	c0 = [];
+	var tval = (val - 1 - DLT) * CSIZE;
+	for(var x = 0; x < CNUM; x++){
+	    for(var y = 0; y < CNUM; y++){
+		for(var z = 0; z < CNUM; z++){
+		    var p = cube[x][y][z].position;
+		    var q = cube[x][y][z].quaternion;
+		    var p0 = p.clone();
+		    var q0 = q.clone();
+		    if(axis == "x" && (p.x == tval || val == 0)){
+			var q1 = new THREE.Quaternion().set(1, 0, 0, dir).normalize().multiply(q.clone());
+			c0.push({x: x, y: y, z: z, p0: p0, q0: q0, q1: q1});
+		    } else if (axis == "y" && (p.y == tval || val == 0)){
+			var q1 = new THREE.Quaternion().set(0, 1, 0, dir).normalize().multiply(q.clone());
+			c0.push({x: x, y: y, z: z, p0: p0, q0: q0, q1: q1});
+		    } else if (axis == "z" && (p.z == tval || val == 0)){
+			var q1 = new THREE.Quaternion().set(0, 0, 1, dir).normalize().multiply(q.clone());
+			c0.push({x: x, y: y, z: z, p0: p0, q0: q0, q1: q1});
+		    }
+		}
+	    }
+	}
+    }
+    // animate turn
+    var rad = 0.5 * Math.PI * rate;
+    //console.log(rate + "    " + rad);
+    //console.log(c0);
+    for(var i = 0; i < c0.length; i++){
+	var p = cube[c0[i].x][c0[i].y][c0[i].z].position;
+	var q = cube[c0[i].x][c0[i].y][c0[i].z].quaternion;
+	// position
+	if(axis == "x"){
+	    p.y = c0[i].p0.y * Math.cos(dir * rad) - c0[i].p0.z * Math.sin(dir * rad);
+	    p.z = c0[i].p0.z * Math.cos(dir * rad) + c0[i].p0.y * Math.sin(dir * rad);
+	} else if (axis == "y"){
+	    p.z = c0[i].p0.z * Math.cos(dir * rad) - c0[i].p0.x * Math.sin(dir * rad);
+	    p.x = c0[i].p0.x * Math.cos(dir * rad) + c0[i].p0.z * Math.sin(dir * rad);
+	} else if (axis == "z"){
+	    p.x = c0[i].p0.x * Math.cos(dir * rad) - c0[i].p0.y * Math.sin(dir * rad);
+	    p.y = c0[i].p0.y * Math.cos(dir * rad) + c0[i].p0.x * Math.sin(dir * rad);
+	    //if(i==0){console.log(p.x + ", " + p.y);}
+	}
+	// quaternion
+	THREE.Quaternion.slerp(c0[i].q0, c0[i].q1, q, rate);
+    }
+    renderer.render(scene, camera);
 }
 
 function judgeClear(){
@@ -208,13 +301,13 @@ function judgeClear(){
     for(var x = 0; x < CNUM; x++){
 	for(var y = 0; y < CNUM; y++){
 	    for(var z = 0; z < CNUM; z++){
-		var c = cube[x][y][z];		
+		var c = cube[x][y][z];
 		if(z == 0 && y != 0 && y != CNUM - 1 && x != 0 && x != CNUM - 1 ||
 		   x == CNUM - 1 && y != 0 && y != CNUM - 1 && z != 0 && z != CNUM - 1 ||
 		   z == CNUM - 1 && y != 0 && y != CNUM - 1 && x != 0 && x != CNUM - 1 ||
 		   x == 0 && y != 0 && y != CNUM - 1 && z != 0 && z != CNUM - 1 ||
 		   y == CNUM - 1 && z != 0 && z != CNUM - 1 && x != 0 && x != CNUM - 1 ||
-		   y == 0 && z != 0 && z != CNUM - 1 && x != 0 && x != CNUM - 1){
+		   y == 0 && z != 0 && z != CNUM - 1 && x != 0 && x != CNUM - 1){ // edge
 		    normal = c.children[c.colorFaceIndex].normal.clone();
 		    normal.applyQuaternion(c.quaternion);
 		    var target = Math.round(normal.x) + ", " + Math.round(normal.y) + ", " + Math.round(normal.z);
@@ -224,7 +317,7 @@ function judgeClear(){
 		    if(target != targetc){
 			return;
 		    }
-		} else {
+		} else { //not edge
 		    normal = c.children[0].normal.clone();
 		    normal.applyQuaternion(c.quaternion);
 		    var target = Math.round(normal.x) + ", " + Math.round(normal.y) + ", " + Math.round(normal.z);
@@ -239,17 +332,267 @@ function judgeClear(){
 	}
     }
     stopTime();
-    alert("clear");
+    //alert("clear");
     console.log("clear");
 }
 
 function onDocumentMouseMove(e){
     e.preventDefault();
     if(clickFlg){
+	//console.log("***" + turnDirFlg + " ***" + turnAxis);
 	mouse1.x = (e.pageX / WIDTH) * 2 - 1;
 	mouse1.y = -(e.pageY / HEIGHT) * 2 + 1;
 	var dx = mouse1.x - mouse0.x;
 	var dy = mouse1.y - mouse0.y;
+	//console.log("dx: " + dx + " CSIZE * CNUM: " + (CSIZE * CNUM) + " rate: " + rate);
+	//console.log(clickedPlane.parent.position.x + ", " + clickedPlane.parent.position.y + ", " + clickedPlane.parent.position.z);
+	if(pickFlg){
+	    var axis;
+	    var val;
+	    if(!dragFlg){
+		clickedPlaneNormal = clickedPlane.normal.clone();
+		clickedPlaneNormal.applyQuaternion(clickedPlane.parent.quaternion);
+	    }
+	    //console.log("normal = (" + normal.x + ", " + normal.y + ", " + normal.z + ")");
+	    if(clickedPlaneNormal.x > 0.9){
+		if(dy < R3 * dx && dy > -1 / R3 * dx || dy > R3 * dx && dy < -1 / R3 * dx){
+		    if(turnAxis != "y" && c0.length > 0){
+			for(var i = 0; i < c0.length; i++){
+			    var h = cube[c0[i].x][c0[i].y][c0[i].z].position;
+			    cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+			    cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+			}
+			dragFlg = false;
+		    }
+		    turnAxis = "y";
+		    rate = (0.5 * R3 * dx + 0.5 * dy) > 1 ? 1 : 0.5 * R3 * dx + 0.5 * dy;
+		    dragTurn("y", clickedPlane.parent.position.y/CSIZE+2, 1);
+		}else if(dy > R3 * dx && dy > -1 / R3 * dx || dy < R3 * dx && dy < -1 / R3 * dx){
+		    if(turnAxis != "z" && c0.length > 0){
+			for(var i = 0; i < c0.length; i++){
+			    cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+			    cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+			}
+			dragFlg = false;
+		    }
+		    turnAxis = "z";
+		    rate = dy > 1 ? 1 : dy;
+		    dragTurn("z", clickedPlane.parent.position.z/CSIZE+2, 1);
+		}
+	    }else if(clickedPlaneNormal.y > 0.9){
+		if(dx > 0 && dy > 0 || dx < 0 && dy < 0){
+		    if(turnAxis != "x" && c0.length > 0){
+			for(var i = 0; i < c0.length; i++){
+			    var h = cube[c0[i].x][c0[i].y][c0[i].z].position;
+			    cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+			    cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+			}
+			dragFlg = false;
+		    }
+		    turnAxis = "x";
+		    rate = (0.5 * R3 * dx + 0.5 * dy) > 1 ? 1 : 0.5 * R3 * dx + 0.5 * dy;
+		    dragTurn("x", clickedPlane.parent.position.x/CSIZE+2, -1);
+		}else if(dx < 0 && dy > 0 || dx > 0 && dy < 0){
+		    if(turnAxis != "z" && c0.length > 0){
+			for(var i = 0; i < c0.length; i++){
+			    var h = cube[c0[i].x][c0[i].y][c0[i].z].position;
+			    cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+			    cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+			}
+			dragFlg = false;
+		    }
+		    turnAxis = "z";
+		    rate = (0.5 * R3 * dx - 0.5 * dy) > 1 ? 1 : 0.5 * R3 * dx - 0.5 * dy;
+		    dragTurn("z", clickedPlane.parent.position.z/CSIZE+2, -1);
+		}
+	    }else if(clickedPlaneNormal.z > 0.9){
+		if(dy < 1 / R3 * dx && dy > -R3 * dx || dy > 1 / R3 * dx && dy < -R3 * dx){
+		    if(turnAxis != "y" && c0.length > 0){
+			for(var i = 0; i < c0.length; i++){
+			    var h = cube[c0[i].x][c0[i].y][c0[i].z].position;
+			    cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+			    cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+			}
+			dragFlg = false;
+		    }
+		    turnAxis = "y";
+		    rate = (0.5 * R3 * dx - 0.5 * dy) > 1 ? 1 : 0.5 * R3 * dx - 0.5 * dy;
+		    dragTurn("y", clickedPlane.parent.position.y/CSIZE+2, 1);
+		}else if(dy > 1 / R3 * dx && dy > -R3 * dx || dy < 1 / R3 * dx && dy < -R3 * dx){
+		    if(turnAxis != "x" && c0.length > 0){
+			for(var i = 0; i < c0.length; i++){
+			    cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+			    cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+			}
+			dragFlg = false;
+		    }
+		    turnAxis = "x";
+		    rate = dy > 1 ? 1 : dy;
+		    dragTurn("x", clickedPlane.parent.position.x/CSIZE+2, -1);
+		}
+	    }
+	}else if (true){
+	    if(mouse0.y < 1 / R3 * mouse0.x && mouse0.y > -1 / R3 * mouse0.x){
+		if(dx > 0 && dy > 0 || dx < 0 && dy < 0){
+		    if(turnAxis != "y" && c0.length > 0){
+			for(var i = 0; i < c0.length; i++){
+			    var h = cube[c0[i].x][c0[i].y][c0[i].z].position;
+			    cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+			    cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+			}
+			dragFlg = false;
+		    }
+		    turnAxis = "y";
+		    rate = (0.5 * R3 * dx + 0.5 * dy) > 1 ? 1 : 0.5 * R3 * dx + 0.5 * dy;
+		    dragTurn("y", 0, 1);
+		}else if(dx < 0 && dy > 0 || dx > 0 && dy < 0){
+		    if(turnAxis != "z" && c0.length > 0){
+			for(var i = 0; i < c0.length; i++){
+			    var h = cube[c0[i].x][c0[i].y][c0[i].z].position;
+			    cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+			    cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+			}
+			dragFlg = false;
+		    }
+		    turnAxis = "z";
+		    rate = (0.5 * R3 * dx - 0.5 * dy) > 1 ? 1 : 0.5 * R3 * dx - 0.5 * dy;
+		    dragTurn("z", 0, -1);
+		}
+	    }
+	    if(mouse0.y > 1 / R3 * mouse0.x && mouse0.x > 0){
+		if(dy < R3 * dx && dy > -1 / R3 * dx || dy > R3 * dx && dy < -1 / R3 * dx){
+		    if(turnAxis != "x" && c0.length > 0){
+			for(var i = 0; i < c0.length; i++){
+			    var h = cube[c0[i].x][c0[i].y][c0[i].z].position;
+			    cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+			    cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+			}
+			dragFlg = false;
+		    }
+		    turnAxis = "x";
+		    rate = (0.5 * R3 * dx + 0.5 * dy) > 1 ? 1 : 0.5 * R3 * dx + 0.5 * dy;
+		    dragTurn("x", 0, -1);
+		}else if(dy > R3 * dx && dy > -1 / R3 * dx || dy < R3 * dx && dy < -1 / R3 * dx){
+		    if(turnAxis != "z" && c0.length > 0){
+			for(var i = 0; i < c0.length; i++){
+			    cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+			    cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+			}
+			dragFlg = false;
+		    }
+		    turnAxis = "z";
+		    rate = dy > 1 ? 1 : dy;
+		    dragTurn("z", 0, 1);
+		}
+	    }
+	    if(mouse0.y > -1 / R3 * mouse0.x && mouse0.x < 0){
+		if(dy < -R3 * dx && dy > 1 / R3 * dx || dy > -R3 * dx && dy < 1 / R3 * dx){
+		    if(turnAxis != "z" && c0.length > 0){
+			for(var i = 0; i < c0.length; i++){
+			    var h = cube[c0[i].x][c0[i].y][c0[i].z].position;
+			    cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+			    cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+			}
+			dragFlg = false;
+		    }
+		    turnAxis = "z";
+		    rate = (0.5 * R3 * dx - 0.5 * dy) > 1 ? 1 : 0.5 * R3 * dx - 0.5 * dy;
+		    dragTurn("z", 0, -1);
+		}else if(dy > -R3 * dx && dy > 1 / R3 * dx || dy < -R3 * dx && dy < 1 / R3 * dx){
+		    if(turnAxis != "x" && c0.length > 0){
+			for(var i = 0; i < c0.length; i++){
+			    cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+			    cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+			}
+			dragFlg = false;
+		    }
+		    turnAxis = "x";
+		    rate = dy > 1 ? 1 : dy;
+		    dragTurn("x", 0, -1);
+		}
+	    }
+	    if(mouse0.y > 1 / R3 * mouse0.x && mouse0.y < -1 / R3 * mouse0.x){
+		if(dx > 0 && dy > 0 || dx < 0 && dy < 0){
+		    if(turnAxis != "x" && c0.length > 0){
+			for(var i = 0; i < c0.length; i++){
+			    var h = cube[c0[i].x][c0[i].y][c0[i].z].position;
+			    cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+			    cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+			}
+			dragFlg = false;
+		    }
+		    turnAxis = "x";
+		    rate = (0.5 * R3 * dx + 0.5 * dy) > 1 ? 1 : 0.5 * R3 * dx + 0.5 * dy;
+		    dragTurn("x", 0, -1);
+		}else if(dx < 0 && dy > 0 || dx > 0 && dy < 0){
+		    if(turnAxis != "y" && c0.length > 0){
+			for(var i = 0; i < c0.length; i++){
+			    var h = cube[c0[i].x][c0[i].y][c0[i].z].position;
+			    cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+			    cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+			}
+			dragFlg = false;
+		    }
+		    turnAxis = "y";
+		    rate = (0.5 * R3 * dx - 0.5 * dy) > 1 ? 1 : 0.5 * R3 * dx - 0.5 * dy;
+		    dragTurn("y", 0, 1);
+		}
+	    }
+	    if(mouse0.y < 1 / R3 * mouse0.x && mouse0.x < 0){
+		if(dy < R3 * dx && dy > -1 / R3 * dx || dy > R3 * dx && dy < -1 / R3 * dx){
+		    if(turnAxis != "y" && c0.length > 0){
+			for(var i = 0; i < c0.length; i++){
+			    var h = cube[c0[i].x][c0[i].y][c0[i].z].position;
+			    cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+			    cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+			}
+			dragFlg = false;
+		    }
+		    turnAxis = "y";
+		    rate = (0.5 * R3 * dx + 0.5 * dy) > 1 ? 1 : 0.5 * R3 * dx + 0.5 * dy;
+		    dragTurn("y", 0, 1);
+		}else if(dy > R3 * dx && dy > -1 / R3 * dx || dy < R3 * dx && dy < -1 / R3 * dx){
+		    if(turnAxis != "x" && c0.length > 0){
+			for(var i = 0; i < c0.length; i++){
+			    cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+			    cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+			}
+			dragFlg = false;
+		    }
+		    turnAxis = "x";
+		    rate = dy > 1 ? 1 : dy;
+		    dragTurn("x", 0, -1);
+		}
+	    }
+	    if(mouse0.y < -1 / R3 * mouse0.x && mouse0.x > 0){
+		if(dy < -R3 * dx && dy > 1 / R3 * dx || dy > -R3 * dx && dy < 1 / R3 * dx){
+		    if(turnAxis != "y" && c0.length > 0){
+			for(var i = 0; i < c0.length; i++){
+			    var h = cube[c0[i].x][c0[i].y][c0[i].z].position;
+			    cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+			    cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+			}
+			dragFlg = false;
+		    }
+		    turnAxis = "y";
+		    rate = (0.5 * R3 * dx - 0.5 * dy) > 1 ? 1 : 0.5 * R3 * dx - 0.5 * dy;
+		    dragTurn("y", 0, 1);
+		}else if(dy > -R3 * dx && dy > 1 / R3 * dx || dy < -R3 * dx && dy < 1 / R3 * dx){
+		    if(turnAxis != "z" && c0.length > 0){
+			for(var i = 0; i < c0.length; i++){
+			    cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+			    cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+			}
+			dragFlg = false;
+		    }
+		    turnAxis = "z";
+		    rate = dy > 1 ? 1 : dy;
+		    dragTurn("z", 0, 1);
+		}
+	    }
+	}
+
+
     }
 }
 
@@ -276,115 +619,76 @@ function onDocumentMouseDown(e){
 function onDocumentMouseUp(e){
     e.preventDefault();
     clickFlg = false;
+    dragFlg = false;
     mouse1.x = (e.pageX / WIDTH) * 2 - 1;
     mouse1.y = -(e.pageY / HEIGHT) * 2 + 1;
     var dx = mouse1.x - mouse0.x;
     var dy = mouse1.y - mouse0.y;
+    //console.log(dx + ", " + dy);
     if(pickFlg){
+	pickFlg = false;
 	var axis;
 	var val;
-	var normal = clickedPlane.normal.clone();
-	normal.applyQuaternion(clickedPlane.parent.quaternion);
-	var target = Math.round(normal.x) + ", " + Math.round(normal.y) + ", " + Math.round(normal.z);
-	var ttt = clickedPlane.parent.position;
-	console.log("touch -> " + target + "    " + ttt.x + ", " + ttt.y + ", " + ttt.z);
-	if(normal.x > 0.9){
-	    if(dy < 1.732 * dx && dy > -0.577 * dx){
+	if(clickedPlaneNormal.x > 0.9){
+	    if(dy < R3 * dx && dy > -1 / R3 * dx || dy > R3 * dx && dy < -1 / R3 * dx){
 		turn("y", clickedPlane.parent.position.y/CSIZE+2, 1);
-	    }else if(dy > 1.732 * dx && dy > -0.577 * dx){
+	    }else if(dy > R3 * dx && dy > -1 / R3 * dx || dy < R3 * dx && dy < -1 / R3 * dx){
 		turn("z", clickedPlane.parent.position.z/CSIZE+2, 1);
-	    }else if(dy > 1.732 * dx && dy < -0.577 * dx){
-		turn("y", clickedPlane.parent.position.y/CSIZE+2, -1);
-	    }else if(dy < 1.732 * dx && dy < -0.577 * dx){
+	    }
+	}else if(clickedPlaneNormal.y > 0.9){
+	    if(dx > 0 && dy > 0 || dx < 0 && dy < 0){
+		turn("x", clickedPlane.parent.position.x/CSIZE+2, -1);
+	    }else if(dx < 0 && dy > 0 || dx > 0 && dy < 0){
 		turn("z", clickedPlane.parent.position.z/CSIZE+2, -1);
 	    }
-	}else if(normal.y > 0.9){
-	    if(dx > 0 && dy > 0){
-		turn("x", clickedPlane.parent.position.x/CSIZE+2, -1);
-	    }else if(dx < 0 && dy > 0){
-		turn("z", clickedPlane.parent.position.z/CSIZE+2, 1);
-	    }else if(dx < 0 && dy < 0){
-		turn("x", clickedPlane.parent.position.x/CSIZE+2, 1);
-	    }else if(dx > 0 && dy < 0){
-		turn("z", clickedPlane.parent.position.z/CSIZE+2, -1);
-	    }
-	}else if(normal.z > 0.9){
-	    if(dy < 0.577 * dx && dy > -1.732 * dx){
+	}else if(clickedPlaneNormal.z > 0.9){
+	    if(dy < 1 / R3 * dx && dy > -R3 * dx || dy > 1 / R3 * dx && dy < -R3 * dx){
 		turn("y", clickedPlane.parent.position.y/CSIZE+2, 1);
-	    }else if(dy > 0.577 * dx && dy > -1.732 * dx){
+	    }else if(dy > 1 / R3 * dx && dy > -R3 * dx || dy < 1 / R3 * dx && dy < -R3 * dx){
 		turn("x", clickedPlane.parent.position.x/CSIZE+2, -1);
-	    }else if(dy > 0.577 * dx && dy < -1.732 * dx){
-		turn("y", clickedPlane.parent.position.y/CSIZE+2, -1);
-	    }else if(dy < 0.577 * dx && dy < -1.732 * dx){
-		turn("x", clickedPlane.parent.position.x/CSIZE+2, 1);
 	    }
 	}
-	pickFlg = false;
     }else{
-	if(mouse0.y < 0.577 * mouse0.x && mouse0.y > -0.577 * mouse0.x){
-	    if(dx > 0 && dy > 0){
+	if(dx > 0 && dy > 0 || dx < 0 && dy < 0){
+	    if(mouse0.y < 1 / R3 * mouse0.x && mouse0.y > -1 / R3 * mouse0.x){
 		turn("y", 0, 1);
-	    }else if(dx < 0 && dy > 0){
-		turn("z", 0, 1);
-	    }else if(dx < 0 && dy < 0){
-		turn("y", 0, -1);
-	    }else if(dx > 0 && dy < 0){
+	    }else if(dx < 0 && dy > 0 || dx > 0 && dy < 0){
 		turn("z", 0, -1);
 	    }
 	}
-	if(mouse0.y > 0.577 * mouse0.x && mouse0.x > 0){
-	    if(dy < 1.732 * dx && dy > -0.577 * dx){
+	if(mouse0.y > 1 / R3 * mouse0.x && mouse0.x > 0){
+	    if(dy < R3 * dx && dy > -1 / R3 * dx || dy > R3 * dx && dy < -1 / R3 * dx){
 		turn("x", 0, -1);
-	    }else if(dy > 1.732 * dx && dy > -0.577 * dx){
+	    }else if(dy > R3 * dx && dy > -1 / R3 * dx || dy < R3 * dx && dy < -1 / R3 * dx){
 		turn("z", 0, 1);
-	    }else if(dy > 1.732 * dx && dy < -0.577 * dx){
-		turn("x", 0, 1);
-	    }else if(dy < 1.732 * dx && dy < -0.577 * dx){
-		turn("z", 0, -1);
 	    }
 	}
-	if(mouse0.y > -0.577 * mouse0.x && mouse0.x < 0){
-	    if(dy < -1.732 * dx && dy > 0.577 * dx){
-		turn("z", 0, 1);
-	    }else if(dy > -1.732 * dx && dy > 0.577 * dx){
-		turn("x", 0, -1);
-	    }else if(dy > -1.732 * dx && dy < 0.577 * dx){
+	if(mouse0.y > -1 / R3 * mouse0.x && mouse0.x < 0){
+	    if(dy < -R3 * dx && dy > 1 / R3 * dx || dy > -R3 * dx && dy < 1 / R3 * dx){
 		turn("z", 0, -1);
-	    }else if(dy < -1.732 * dx && dy < 0.577 * dx){
-		turn("x", 0, 1);
+	    }else if(dy > -R3 * dx && dy > 1 / R3 * dx || dy < -R3 * dx && dy < 1 / R3 * dx){
+		turn("x", 0, -1);
 	    }
 	}
-	if(mouse0.y > 0.577 * mouse0.x && mouse0.y < -0.577 * mouse0.x){
-	    if(dx > 0 && dy > 0){
+	if(mouse0.y > 1 / R3 * mouse0.x && mouse0.y < -1 / R3 * mouse0.x){
+	    if(dx > 0 && dy > 0 || dx < 0 && dy < 0){
 		turn("x", 0, -1);
-	    }else if(dx < 0 && dy > 0){
-		turn("y", 0, -1);
-	    }else if(dx < 0 && dy < 0){
-		turn("x", 0, 1);
-	    }else if(dx > 0 && dy < 0){
+	    }else if(dx < 0 && dy > 0 || dx > 0 && dy < 0){
 		turn("y", 0, 1);
 	    }
 	}
-	if(mouse0.y < 0.577 * mouse0.x && mouse0.x < 0){
-	    if(dy < 1.732 * dx && dy > -0.577 * dx){
+	if(mouse0.y < 1 / R3 * mouse0.x && mouse0.x < 0){
+	    if(dy < R3 * dx && dy > -1 / R3 * dx || dy > R3 * dx && dy < -1 / R3 * dx){
 		turn("y", 0, 1);
-	    }else if(dy > 1.732 * dx && dy > -0.577 * dx){
+	    }else if(dy > R3 * dx && dy > -1 / R3 * dx || dy < R3 * dx && dy < -1 / R3 * dx){
 		turn("x", 0, -1);
-	    }else if(dy > 1.732 * dx && dy < -0.577 * dx){
-		turn("y", 0, -1);
-	    }else if(dy < 1.732 * dx && dy < -0.577 * dx){
-		turn("x", 0, 1);
 	    }
 	}
-	if(mouse0.y < -0.577 * mouse0.x && mouse0.x > 0){
-	    if(dy < -1.732 * dx && dy > 0.577 * dx){
-		turn("y", 0, -1);
-	    }else if(dy > -1.732 * dx && dy > 0.577 * dx){
-		turn("z", 0, 1);
-	    }else if(dy > -1.732 * dx && dy < 0.577 * dx){
+	if(mouse0.y < -1 / R3 * mouse0.x && mouse0.x > 0){
+	    if(dy < -R3 * dx && dy > 1 / R3 * dx || dy > -R3 * dx && dy < 1 / R3 * dx){
 		turn("y", 0, 1);
-	    }else if(dy < -1.732 * dx && dy < 0.577 * dx){
-		turn("z", 0, -1);
+	    }else if(dy > -R3 * dx && dy > 1 / R3 * dx || dy < -R3 * dx && dy < 1 / R3 * dx){
+		turn("z", 0, 1);
 	    }
 	}
     }
