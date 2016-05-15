@@ -1,6 +1,12 @@
 /*
 課題
+・画像ではなくthree.jsの機能で表面の色を描く
+・スタートボタン（シャッフル）
 ・元に戻すボタン
+・ログイン機能
+・記録保存機能
+・記録グラフ機能
+・デザインを整える
 */
 
 
@@ -12,7 +18,7 @@ var FLD;
 var CNUM = 3;
 var CSIZE = 10;
 var DLT = (CNUM - 1) * 0.5;
-var ZOOM = 1900;
+var ZOOM = 2500;
 var SPEED = 0.007;
 var FPS = 60;
 var SPF = 1000 / FPS;
@@ -25,6 +31,7 @@ var pickFlg = false;
 var clickFlg = false;
 var dragFlg = false;
 var turnDirFlg = false;
+var turnFinishFlg = true;
 var clickedPlane;
 var clickedPlaneNormal;
 var timeFlg = true;
@@ -97,8 +104,10 @@ window.onload = function() {
 	    var ww = window.innerWidth;
 	    var wh = window.innerHeight;
 	    var wl = ww > wh ? wh : ww;
-	    WIDTH = ww > wh ? 0.83 * wl : wl;
-	    HEIGHT = ww > wh ? wl - 16 : 1.2 * wl;
+	    //WIDTH = ww > wh ? 0.83 * wl : wl;
+	    //HEIGHT = ww > wh ? wl - 16 : 1.2 * wl;
+	    WIDTH = ww;
+	    HEIGHT = wh - 20;
 	    FLD.style.width = WIDTH + "px";
 	    FLD.style.height = HEIGHT + "px";
 	    camera = new THREE.PerspectiveCamera(1, WIDTH / HEIGHT, 1000, 5000);
@@ -112,7 +121,9 @@ window.onload = function() {
 	    FLD.addEventListener('touchstart', onDocumentMouseDown, false);
 	    FLD.addEventListener('touchend'  , onDocumentMouseUp  , false);
 	    renderer = new THREE.WebGLRenderer({antialias: true});
-	    renderer.setSize(FLD.clientWidth, FLD.clientHeight);
+	    renderer.setSize(WIDTH, HEIGHT);
+	    console.log(window, WIDTH, HEIGHT, FLD.style);
+	    console.log(FLD);
 	    renderer.setClearColor(0xffffff, 1.0);
             FLD.appendChild(renderer.domElement);
 	    renderer.render(scene, camera);
@@ -144,7 +155,7 @@ function turn(axis, val, dir){
 	// calculate goal of quaternion (q1)
 	if(!anmFlg){
 	    var t = rate / SPF / SPEED;
-	    var turnFinishFlg = false;
+	    turnFinishFlg = false;
 	    // animate turn
 	    anm = setInterval(function(){
 		var rad = 0.5 * Math.PI * t * SPF * SPEED;
@@ -280,7 +291,6 @@ function dragTurn(axis, val, dir){
 	} else if (axis == "z"){
 	    p.x = c0[i].p0.x * Math.cos(dir * rad) - c0[i].p0.y * Math.sin(dir * rad);
 	    p.y = c0[i].p0.y * Math.cos(dir * rad) + c0[i].p0.x * Math.sin(dir * rad);
-	    //if(i==0){console.log(p.x + ", " + p.y);}
 	}
 	// quaternion
 	THREE.Quaternion.slerp(c0[i].q0, c0[i].q1, q, rate);
@@ -338,7 +348,7 @@ function judgeClear(){
 
 function onDocumentMouseMove(e){
     e.preventDefault();
-    if(clickFlg){
+    if(clickFlg && turnFinishFlg){
 	//console.log("***" + turnDirFlg + " ***" + turnAxis);
 	mouse1.x = (e.pageX / WIDTH) * 2 - 1;
 	mouse1.y = -(e.pageY / HEIGHT) * 2 + 1;
@@ -598,6 +608,9 @@ function onDocumentMouseMove(e){
 
 function onDocumentMouseDown(e){
     e.preventDefault();
+    if(!turnFinishFlg){
+	return;
+    }
     clickFlg = true;
 
     // time
@@ -618,6 +631,9 @@ function onDocumentMouseDown(e){
 
 function onDocumentMouseUp(e){
     e.preventDefault();
+    if(!turnFinishFlg){
+	return;
+    }
     clickFlg = false;
     dragFlg = false;
     mouse1.x = (e.pageX / WIDTH) * 2 - 1;
