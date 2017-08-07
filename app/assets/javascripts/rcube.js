@@ -36,7 +36,6 @@ var turnDirFlg = false;
 var turnFinishFlg = true;
 var clickedPlane;
 var clickedPlaneNormal;
-var timeFlg = true;
 var turnAxis = "";
 var tmr2;
 var t0;
@@ -566,11 +565,6 @@ function onDocumentMouseDown(e){
     }
     clickFlg = true;
 
-    // time
-    if(timeFlg){
-	startTime();
-    }
-    
     // find clicked face
     mouse0.x = (e.pageX / SCALE) * 2 - 1;
     mouse0.y = -(e.pageY / SCALE) * 2 + 1;
@@ -671,24 +665,6 @@ function onDocumentMouseUp(e){
     }
 }
 
-function startTime(){
-    timeFlg = false;
-    t0 = new Date();
-    tmr2 = setInterval(function(){
-        var t = new Date().getTime() - t0.getTime();
-        var h = Math.floor(t / 3600000);
-        var m = Math.floor((t - h * 3600000) / 60000);
-        var s = Math.floor((t - h * 3600000 - m * 60000) / 1000);
-        var ms = t - h * 3600000 - m * 60000 - s * 1000;
-        var disptime = ("0" + m).slice(-2) + "'" + ("0" + s).slice(-2) + '"' + ("00" + ms).slice(-3);
-        document.getElementById('time').innerHTML = disptime;
-    }, 1)
-}
-
-function stopTime(){
-    timeFlg = true;
-    clearInterval(tmr2);
-}
 
 
 
