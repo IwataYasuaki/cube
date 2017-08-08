@@ -8,6 +8,7 @@
 ・記録グラフ機能
 ・デザインを整える
 ・CNUMを変更して4x4や5x5もできるようにする
+・６面そろえるチュートリアル
 */
 
 var camera, scene, renderer;
@@ -299,7 +300,6 @@ function judgeClear(){
 	    }
 	}
     }
-    stopTime();
     //alert("clear");
     console.log("clear");
 }
