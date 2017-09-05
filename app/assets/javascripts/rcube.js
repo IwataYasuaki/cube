@@ -6,25 +6,28 @@
 ・記録保存機能
 ・記録グラフ機能
 ・デザインを整える
-・CNUMを変更して4x4や5x5もできるようにする
 ・６面そろえるチュートリアル
 ・画像ではなくthree.jsの機能で表面の色を描くようにする
+・CNUMを大きくしてもカクカクにならないように計算量削減
 */
 
+// parameters
+var CNUM = 10; // 1辺のキューブ数
+var SIZE = 42; // キューブの大きさ
+var SPEED = 0.005; // 回転速度
+var FPS = 60; // 回転時のFramesPerSecond
+var THREDRAG = 0.01; // 回転させるドラッグ距離閾値
+
+// constants
 var camera, scene, renderer;
 var SCALE; // canvasの横幅および高さ
-var cube = [[[],[],[]],[[],[],[]],[[],[],[]]];
+var cube = [[[]]];
 var c0 = [];
 var FLD;
-var CNUM = 3;
-var CSIZE = 14;
+var CSIZE = SIZE / CNUM;
 var DLT = (CNUM - 1) * 0.5;
 var ZOOM = 2500;
-var SPEED = 0.007; // 回転速度
-//var SPEED = 0.003; // 回転速度
-var FPS = 60;
-var SPF = 1000 / FPS;
-var THREDRAG = 0.01; // 回転させるドラッグ距離閾値
+var MSPF = 1000 / FPS;
 var rate;
 var raycaster;
 var pickFlg = false;
@@ -35,6 +38,7 @@ var clickedPlane;
 var clickedPlaneNormal;
 var timeFlg = true;
 var turnAxis = "";
+var turnDir = 0;
 var tmr2;
 var t0;
 var mouse0;
@@ -66,9 +70,12 @@ window.onload = function() {
     var geometry = new THREE.PlaneGeometry(CSIZE, CSIZE, 2);
     var material;
     for(var x = 0; x < CNUM; x++){
+        if(x != 0) cube.push([[]]);
         for(var y = 0; y < CNUM; y++){
+            if(y != 0) cube[x].push([]);
             for(var z = 0; z < CNUM; z++){
-                cube[x][y][z] = new THREE.Object3D();
+                //cube[x][y][z] = new THREE.Object3D();
+                cube[x][y].push(new THREE.Object3D());
                 addFace(x, y, z, "z", 0       , orange, [0, 0, -CSIZE / 2], [0, 1, 0, 0] , [0, 0, -1]);
                 addFace(x, y, z, "x", CNUM - 1, blue  , [CSIZE / 2, 0, 0] , [0, 1, 0, 1] , [1, 0, 0] );
                 addFace(x, y, z, "z", CNUM - 1, red   , [0, 0, CSIZE / 2] , [0, 0, 0, 1] , [0, 0, 1] );
@@ -76,6 +83,7 @@ window.onload = function() {
                 addFace(x, y, z, "y", CNUM - 1, white , [0, CSIZE / 2, 0] , [1, 0, 0, -1], [0, 1, 0] );
                 addFace(x, y, z, "y", 0       , yellow, [0, -CSIZE / 2, 0], [1, 0, 0, 1] , [0, -1, 0]);
                 cube[x][y][z].position.set((x - DLT) * CSIZE, (y - DLT) * CSIZE, (z - DLT) * CSIZE);
+                cube[x][y][z].positionLogical = new THREE.Vector3(x, y, z);
                 if(z == 0 && y != 0 && y != CNUM - 1 && x != 0 && x != CNUM - 1){
                     cube[x][y][z].colorFaceIndex = 0;
                 }else if(x == CNUM - 1 && y != 0 && y != CNUM - 1 && z != 0 && z != CNUM - 1){
@@ -93,6 +101,7 @@ window.onload = function() {
             }
         }
     }
+//console.log(cube);
 
     // initial render
     var tmr = setInterval(function(){
@@ -139,39 +148,151 @@ window.onload = function() {
     }
 }
 
-// turn plane
-// axis = "x" or "y" or "z"
-// dir  = 1 or -1
-function turn(axis, dir){
-    turnFinishFlg = false;
-    // animate turn
-    var anm = setInterval(function(){
-        // if turn finish
-        if(Math.abs(rate) >= 1){
-            turnFinishFlg = true;
-            clearInterval(anm);
-            rate = rate > 0 ? 1 : -1;
-        }
-        turnAllCubes(axis, dir);
-        renderer.render(scene, camera);
-        if(turnFinishFlg){
-            for(var i = 0; i < c0.length; i++){
-                var p = cube[c0[i].x][c0[i].y][c0[i].z].position;
-                var q = cube[c0[i].x][c0[i].y][c0[i].z].quaternion;
-                xyzRound(p);
-                q.x = qcorrect(q.x);
-                q.y = qcorrect(q.y);
-                q.z = qcorrect(q.z);
-                q.w = qcorrect(q.w);
+function onDocumentMouseMove(e){
+    e.preventDefault();
+    // クリック中かつ回転アニメ済の場合
+    if(clickFlg && turnFinishFlg){ 
+        mouse1.x = (e.pageX / SCALE) * 2 - 1;
+        mouse1.y = -(e.pageY / SCALE) * 2 + 1;
+        var dx = mouse1.x - mouse0.x;
+        var dy = mouse1.y - mouse0.y;
+        // キューブをクリック中の場合
+        if(pickFlg){
+            var val;
+            // クリック中だけどまだドラッグしてない場合
+            if(!dragFlg){
+                clickedPlaneNormal = clickedPlane.normal.clone();
+                clickedPlaneNormal.applyQuaternion(clickedPlane.parent.quaternion);
+                clickedPlaneNormal.round();
             }
-            judgeClear();
-            c0 = [];
+            // x軸に垂直な面をクリックした場合
+            if(clickedPlaneNormal.x == 1){
+                if(dy < R3 * dx && dy > -1 / R3 * dx || dy > R3 * dx && dy < -1 / R3 * dx){
+                    dragTurnAction("y", 1, 0.5 * R3 * dx + 0.5 * dy);
+                }else{
+                    dragTurnAction("z", 1, dy);
+                }
+            }else if(clickedPlaneNormal.y == 1){
+                if(dx > 0 && dy > 0 || dx < 0 && dy < 0){
+                    dragTurnAction("x", -1, 0.5 * R3 * dx + 0.5 * dy);
+                }else{
+                    dragTurnAction("z", -1, 0.5 * R3 * dx - 0.5 * dy);
+                }
+            }else if(clickedPlaneNormal.z == 1){
+                if(dy < 1 / R3 * dx && dy > -R3 * dx || dy > 1 / R3 * dx && dy < -R3 * dx){
+                    dragTurnAction("y", 1, 0.5 * R3 * dx - 0.5 * dy);
+                }else{
+                    dragTurnAction("x", -1, dy);
+                }
+            }
+        // キューブの外をクリック中の場合
+        }else if (true){
+            if(mouse0.y < 1 / R3 * mouse0.x && mouse0.y > -1 / R3 * mouse0.x){
+                if(dx > 0 && dy > 0 || dx < 0 && dy < 0){
+                    dragTurnAction("y", 1, 0.5 * R3 * dx + 0.5 * dy);
+                }else{
+                    dragTurnAction("z", -1, 0.5 * R3 * dx - 0.5 * dy);
+                }
+            }else if(mouse0.y > 1 / R3 * mouse0.x && mouse0.x > 0){
+                if(dy < R3 * dx && dy > -1 / R3 * dx || dy > R3 * dx && dy < -1 / R3 * dx){
+                    dragTurnAction("x", -1, 0.5 * R3 * dx + 0.5 * dy);
+                }else{
+                    dragTurnAction("z", 1, dy);
+                }
+            }else if(mouse0.y > -1 / R3 * mouse0.x && mouse0.x < 0){
+                if(dy < -R3 * dx && dy > 1 / R3 * dx || dy > -R3 * dx && dy < 1 / R3 * dx){
+                    dragTurnAction("z", -1, 0.5 * R3 * dx - 0.5 * dy);
+                }else{
+                    dragTurnAction("x", -1, dy);
+                }
+            }else if(mouse0.y > 1 / R3 * mouse0.x && mouse0.y < -1 / R3 * mouse0.x){
+                if(dx > 0 && dy > 0 || dx < 0 && dy < 0){
+                    dragTurnAction("x", -1, 0.5 * R3 * dx + 0.5 * dy);
+                }else{
+                    dragTurnAction("y", 1, 0.5 * R3 * dx - 0.5 * dy);
+                }
+            }else if(mouse0.y < 1 / R3 * mouse0.x && mouse0.x < 0){
+                if(dy < R3 * dx && dy > -1 / R3 * dx || dy > R3 * dx && dy < -1 / R3 * dx){
+                    dragTurnAction("y", 1, 0.5 * R3 * dx + 0.5 * dy);
+                }else{
+                    dragTurnAction("x", -1, dy);
+                }
+            }else if(mouse0.y < -1 / R3 * mouse0.x && mouse0.x > 0){
+                if(dy < -R3 * dx && dy > 1 / R3 * dx || dy > -R3 * dx && dy < 1 / R3 * dx){
+                    dragTurnAction("y", 1, 0.5 * R3 * dx - 0.5 * dy);
+                }else{
+                    dragTurnAction("z", 1, dy);
+                }
+            }
         }
-        rate = rate > 0 ? rate + SPF * SPEED : rate - SPF * SPEED;
-    }, SPF);
+        // ドラッグ距離が一定値を超えた場合
+        if(dx * dx + dy * dy > THREDRAG){
+            turnAction();
+        }
+    }
 }
 
-function dragTurn(axis, val, dir){
+function onDocumentMouseDown(e){
+    //console.log("onDocumentMouseDown");
+    e.preventDefault();
+    if(!turnFinishFlg){
+        return;
+    }
+    clickFlg = true;
+    // time
+    if(timeFlg){
+        startTime();
+    }
+    // find clicked face
+    mouse0.x = (e.pageX / SCALE) * 2 - 1;
+    mouse0.y = -(e.pageY / SCALE) * 2 + 1;
+    var mousez = new THREE.Vector2();
+    mousez.x = (e.pageX / SCALE) * 2 - 1;
+    mousez.y = -(e.pageY / SCALE) * 2 + 1;
+    raycaster.setFromCamera(mousez, camera);
+    var intersects = raycaster.intersectObjects(planes);
+    if(intersects.length > 0){
+        pickFlg = true;
+        clickedPlane = intersects[0].object;
+    }
+}
+
+function onDocumentMouseUp(e){
+    //console.log("onDocumentMouseUp");
+    e.preventDefault();
+    turnAction();
+}
+
+function onDocumentMouseOut(e){
+    //console.log("onDocumentMouseOut");
+    if(clickFlg){
+        turnAction();
+    }
+}
+
+function dragTurnAction(axis, dir, rateArg){
+    if(turnAxis != axis && c0.length > 0){
+        for(var i = 0; i < c0.length; i++){
+            cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
+            cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
+        }
+        dragFlg = false;
+    }
+    turnAxis = axis;
+    rate = rateArg;
+    if(pickFlg){
+        switch(turnAxis){
+            case "x": dragTurn(clickedPlane.parent.positionLogical.x, dir);
+            case "y": dragTurn(clickedPlane.parent.positionLogical.y, dir);
+            case "z": dragTurn(clickedPlane.parent.positionLogical.z, dir);
+        }
+    }else{
+        dragTurn(-1, dir);
+    }
+}
+
+function dragTurn(val, dir){
+    turnDir = dir;
     if(!dragFlg){
         // calculate goal of quaternion (q1)
         dragFlg = true;
@@ -181,17 +302,18 @@ function dragTurn(axis, val, dir){
             for(var y = 0; y < CNUM; y++){
                 for(var z = 0; z < CNUM; z++){
                     var p = cube[x][y][z].position;
+                    var pl = cube[x][y][z].positionLogical;
                     var q = cube[x][y][z].quaternion;
                     var p0 = p.clone();
                     var q0 = q.clone();
-                    if(axis == "x" && (p.x == tval || val == 0)){
-                        var q1 = new THREE.Quaternion().set(1, 0, 0, dir).normalize().multiply(q.clone());
+                    if(turnAxis == "x" && (pl.x == val || val == -1)){
+                        var q1 = new THREE.Quaternion().set(1, 0, 0, turnDir).normalize().multiply(q.clone());
                         c0.push({x: x, y: y, z: z, p0: p0, q0: q0, q1: q1});
-                    } else if (axis == "y" && (p.y == tval || val == 0)){
-                        var q1 = new THREE.Quaternion().set(0, 1, 0, dir).normalize().multiply(q.clone());
+                    } else if (turnAxis == "y" && (pl.y == val || val == -1)){
+                        var q1 = new THREE.Quaternion().set(0, 1, 0, turnDir).normalize().multiply(q.clone());
                         c0.push({x: x, y: y, z: z, p0: p0, q0: q0, q1: q1});
-                    } else if (axis == "z" && (p.z == tval || val == 0)){
-                        var q1 = new THREE.Quaternion().set(0, 0, 1, dir).normalize().multiply(q.clone());
+                    } else if (turnAxis == "z" && (pl.z == val || val == -1)){
+                        var q1 = new THREE.Quaternion().set(0, 0, 1, turnDir).normalize().multiply(q.clone());
                         c0.push({x: x, y: y, z: z, p0: p0, q0: q0, q1: q1});
                     }
                 }
@@ -200,8 +322,84 @@ function dragTurn(axis, val, dir){
     }
     // animate turn
     var rad = 0.5 * Math.PI * rate;
-    turnAllCubes(axis, dir);
+    turnAllCubes();
     renderer.render(scene, camera);
+}
+
+function turnAction(){
+    //console.log("turnAction");
+    if(!turnFinishFlg){
+        return;
+    }
+    if(!clickFlg){
+        return;
+    }
+    clickFlg = false;
+    dragFlg = false;
+    pickFlg = false;
+    turn();
+}
+
+function turn(){
+    turnFinishFlg = false;
+    // animate turn
+    var anm = setInterval(function(){
+        // if turn finish
+        if(Math.abs(rate) >= 1){
+            turnFinishFlg = true;
+            clearInterval(anm);
+            rate = rate > 0 ? 1 : -1;
+        }
+        turnAllCubes();
+        renderer.render(scene, camera);
+        if(turnFinishFlg){
+            for(var i = 0; i < c0.length; i++){
+                var p = cube[c0[i].x][c0[i].y][c0[i].z].position;
+                var pl = cube[c0[i].x][c0[i].y][c0[i].z].positionLogical;
+                var q = cube[c0[i].x][c0[i].y][c0[i].z].quaternion;
+                pl.set(p.x / CSIZE + DLT, p.y / CSIZE + DLT, p.z / CSIZE + DLT).round();
+                p.set((pl.x - DLT) * CSIZE, (pl.y - DLT) * CSIZE, (pl.z - DLT) * CSIZE);
+                q.x = qcorrect(q.x);
+                q.y = qcorrect(q.y);
+                q.z = qcorrect(q.z);
+                q.w = qcorrect(q.w);
+            }
+            judgeClear();
+            c0 = [];
+        }
+        rate = rate > 0 ? rate + MSPF * SPEED : rate - MSPF * SPEED;
+    }, MSPF);
+}
+
+function qcorrect(qelement){
+    var elm = Math.round(qelement * 10) / 10;
+    if([0, 1, -1, 0.5, -0.5].includes(elm)){
+        return elm;
+    }else if(elm > 0){
+        return 1 / Math.sqrt(2);
+    }else if(elm < 0){
+        return -1 / Math.sqrt(2);
+    }
+    return qelement;
+}
+       
+function turnAllCubes(){
+    var rad = 0.5 * Math.PI * rate;
+    for(var i = 0; i < c0.length; i++){
+        var p = cube[c0[i].x][c0[i].y][c0[i].z].position;
+        var q = cube[c0[i].x][c0[i].y][c0[i].z].quaternion;
+        if(turnAxis == "x"){
+            p.y = c0[i].p0.y * Math.cos(turnDir * rad) - c0[i].p0.z * Math.sin(turnDir * rad);
+            p.z = c0[i].p0.z * Math.cos(turnDir * rad) + c0[i].p0.y * Math.sin(turnDir * rad);
+        }else if(turnAxis == "y"){
+            p.z = c0[i].p0.z * Math.cos(turnDir * rad) - c0[i].p0.x * Math.sin(turnDir * rad);
+            p.x = c0[i].p0.x * Math.cos(turnDir * rad) + c0[i].p0.z * Math.sin(turnDir * rad);
+        }else if(turnAxis == "z"){
+            p.x = c0[i].p0.x * Math.cos(turnDir * rad) - c0[i].p0.y * Math.sin(turnDir * rad);
+            p.y = c0[i].p0.y * Math.cos(turnDir * rad) + c0[i].p0.x * Math.sin(turnDir * rad);
+        }
+        THREE.Quaternion.slerp(c0[i].q0, c0[i].q1, q, rate);
+    }
 }
 
 function judgeClear(){
@@ -248,259 +446,6 @@ function judgeClear(){
     stopTime();
     //alert("clear");
     console.log("clear");
-}
-
-function dragAction(axis, val, dir, rateArg){
-    if(turnAxis != axis && c0.length > 0){
-        for(var i = 0; i < c0.length; i++){
-            cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
-            cube[c0[i].x][c0[i].y][c0[i].z].quaternion.copy(c0[i].q0);
-        }
-        dragFlg = false;
-    }
-    turnAxis = axis;
-    rate = rateArg;
-    dragTurn(axis, val, dir);
-}
-
-function onDocumentMouseMove(e){
-    e.preventDefault();
-    // クリック中かつ回転アニメ済の場合
-    if(clickFlg && turnFinishFlg){ 
-        mouse1.x = (e.pageX / SCALE) * 2 - 1;
-        mouse1.y = -(e.pageY / SCALE) * 2 + 1;
-        var dx = mouse1.x - mouse0.x;
-        var dy = mouse1.y - mouse0.y;
-        //console.log(rate + ", " + (Math.sqrt(dx*dx+dy*dy)));
-        // キューブをクリック中の場合
-        if(pickFlg){
-            var val;
-            // クリック中だけどまだドラッグしてない場合
-            if(!dragFlg){
-                clickedPlaneNormal = clickedPlane.normal.clone();
-                clickedPlaneNormal.applyQuaternion(clickedPlane.parent.quaternion);
-                xyzRound(clickedPlaneNormal);
-            }
-            // x軸に垂直な面をクリックした場合
-            if(clickedPlaneNormal.x == 1){
-                if(dy < R3 * dx && dy > -1 / R3 * dx || dy > R3 * dx && dy < -1 / R3 * dx){
-                    dragAction("y", clickedPlane.parent.position.y/CSIZE + DLT + 1, 1, 0.5 * R3 * dx + 0.5 * dy);
-                }else{
-                    dragAction("z", clickedPlane.parent.position.z/CSIZE + DLT + 1, 1, dy);
-                }
-            }else if(clickedPlaneNormal.y == 1){
-                if(dx > 0 && dy > 0 || dx < 0 && dy < 0){
-                    dragAction("x", clickedPlane.parent.position.x/CSIZE + DLT + 1, -1, 0.5 * R3 * dx + 0.5 * dy);
-                }else{
-                    dragAction("z", clickedPlane.parent.position.z/CSIZE + DLT + 1, -1, 0.5 * R3 * dx - 0.5 * dy);
-                }
-            }else if(clickedPlaneNormal.z == 1){
-                if(dy < 1 / R3 * dx && dy > -R3 * dx || dy > 1 / R3 * dx && dy < -R3 * dx){
-                    dragAction("y", clickedPlane.parent.position.y/CSIZE + DLT + 1, 1, 0.5 * R3 * dx - 0.5 * dy);
-                }else{
-                    dragAction("x", clickedPlane.parent.position.x/CSIZE + DLT + 1, -1, dy);
-                }
-            }
-        // キューブの外をクリック中の場合
-        }else if (true){
-            if(mouse0.y < 1 / R3 * mouse0.x && mouse0.y > -1 / R3 * mouse0.x){
-                if(dx > 0 && dy > 0 || dx < 0 && dy < 0){
-                    dragAction("y", 0, 1, 0.5 * R3 * dx + 0.5 * dy);
-                }else{
-                    dragAction("z", 0, -1, 0.5 * R3 * dx - 0.5 * dy);
-                }
-            }else if(mouse0.y > 1 / R3 * mouse0.x && mouse0.x > 0){
-                if(dy < R3 * dx && dy > -1 / R3 * dx || dy > R3 * dx && dy < -1 / R3 * dx){
-                    dragAction("x", 0, -1, 0.5 * R3 * dx + 0.5 * dy);
-                }else{
-                    dragAction("z", 0, 1, dy);
-                }
-            }else if(mouse0.y > -1 / R3 * mouse0.x && mouse0.x < 0){
-                if(dy < -R3 * dx && dy > 1 / R3 * dx || dy > -R3 * dx && dy < 1 / R3 * dx){
-                    dragAction("z", 0, -1, 0.5 * R3 * dx - 0.5 * dy);
-                }else{
-                    dragAction("x", 0, -1, dy);
-                }
-            }else if(mouse0.y > 1 / R3 * mouse0.x && mouse0.y < -1 / R3 * mouse0.x){
-                if(dx > 0 && dy > 0 || dx < 0 && dy < 0){
-                    dragAction("x", 0, -1, 0.5 * R3 * dx + 0.5 * dy);
-                }else{
-                    dragAction("y", 0, 1, 0.5 * R3 * dx - 0.5 * dy);
-                }
-            }else if(mouse0.y < 1 / R3 * mouse0.x && mouse0.x < 0){
-                if(dy < R3 * dx && dy > -1 / R3 * dx || dy > R3 * dx && dy < -1 / R3 * dx){
-                    dragAction("y", 0, 1, 0.5 * R3 * dx + 0.5 * dy);
-                }else{
-                    dragAction("x", 0, -1, dy);
-                }
-            }else if(mouse0.y < -1 / R3 * mouse0.x && mouse0.x > 0){
-                if(dy < -R3 * dx && dy > 1 / R3 * dx || dy > -R3 * dx && dy < 1 / R3 * dx){
-                    dragAction("y", 0, 1, 0.5 * R3 * dx - 0.5 * dy);
-                }else{
-                    dragAction("z", 0, 1, dy);
-                }
-            }
-        }
-        // ドラッグ距離が一定値を超えた場合
-        if(dx * dx + dy * dy > THREDRAG){
-            onDocumentMouseUp(e);
-            return;
-        }
-    }
-}
-
-function onDocumentMouseDown(e){
-    //console.log("onDocumentMouseDown");
-    e.preventDefault();
-    if(!turnFinishFlg){
-        return;
-    }
-    clickFlg = true;
-    // time
-    if(timeFlg){
-        startTime();
-    }
-    // find clicked face
-    mouse0.x = (e.pageX / SCALE) * 2 - 1;
-    mouse0.y = -(e.pageY / SCALE) * 2 + 1;
-    var mousez = new THREE.Vector2();
-    mousez.x = (e.pageX / SCALE) * 2 - 1;
-    mousez.y = -(e.pageY / SCALE) * 2 + 1;
-    raycaster.setFromCamera(mousez, camera);
-    var intersects = raycaster.intersectObjects(planes);
-    if(intersects.length > 0){
-        pickFlg = true;
-        clickedPlane = intersects[0].object;
-    }
-}
-
-function onDocumentMouseUp(e){
-    //console.log("onDocumentMouseUp");
-    e.preventDefault();
-    // 回転中の場合は何もしない
-    if(!turnFinishFlg){
-        return;
-    }
-    // クリック中でないときは何もしない
-    if(!clickFlg){
-        return;
-    }
-    clickFlg = false;
-    dragFlg = false;
-    mouse1.x = (e.pageX / SCALE) * 2 - 1;
-    mouse1.y = -(e.pageY / SCALE) * 2 + 1;
-    var dx = mouse1.x - mouse0.x;
-    var dy = mouse1.y - mouse0.y;
-    if(pickFlg){
-        pickFlg = false;
-        if(clickedPlaneNormal.x == 1){
-            if(dy < R3 * dx && dy > -1 / R3 * dx || dy > R3 * dx && dy < -1 / R3 * dx){
-                turn("y", 1);
-            }else if(dy > R3 * dx && dy > -1 / R3 * dx || dy < R3 * dx && dy < -1 / R3 * dx){
-                turn("z", 1);
-            }
-        }else if(clickedPlaneNormal.y == 1){
-            if(dx > 0 && dy > 0 || dx < 0 && dy < 0){
-                turn("x", -1);
-            }else if(dx < 0 && dy > 0 || dx > 0 && dy < 0){
-                turn("z", -1);
-            }
-        }else if(clickedPlaneNormal.z == 1){
-            if(dy < 1 / R3 * dx && dy > -R3 * dx || dy > 1 / R3 * dx && dy < -R3 * dx){
-                turn("y", 1);
-            }else if(dy > 1 / R3 * dx && dy > -R3 * dx || dy < 1 / R3 * dx && dy < -R3 * dx){
-                turn("x", -1);
-            }
-        }
-    }else{
-        // クリック地点が3時方向の場合
-        if(mouse0.y < 1 / R3 * mouse0.x && mouse0.y > -1 / R3 * mouse0.x){
-            if(dx > 0 && dy > 0 || dx < 0 && dy < 0){
-                turn("y", 1);
-            }else{
-                turn("z", -1);
-            }
-        // クリック地点が1時方向
-        }else if(mouse0.y > 1 / R3 * mouse0.x && mouse0.x > 0){
-            if(dy < R3 * dx && dy > -1 / R3 * dx || dy > R3 * dx && dy < -1 / R3 * dx){
-                turn("x", -1);
-            }else{
-                turn("z", 1);
-            }
-        // クリック地点が11時方向
-        }else if(mouse0.y > -1 / R3 * mouse0.x && mouse0.x < 0){
-            if(dy < -R3 * dx && dy > 1 / R3 * dx || dy > -R3 * dx && dy < 1 / R3 * dx){
-                turn("z", -1);
-            }else{
-                turn("x", -1);
-            }
-        // クリック地点が9時方向
-        }else if(mouse0.y > 1 / R3 * mouse0.x && mouse0.y < -1 / R3 * mouse0.x){
-            if(dx > 0 && dy > 0 || dx < 0 && dy < 0){
-                turn("x", -1);
-            }else{
-                turn("y", 1);
-            }
-        // クリック地点が7時方向
-        }else if(mouse0.y < 1 / R3 * mouse0.x && mouse0.x < 0){
-            if(dy < R3 * dx && dy > -1 / R3 * dx || dy > R3 * dx && dy < -1 / R3 * dx){
-                turn("y", 1);
-            }else{
-                turn("x", -1);
-            }
-        // クリック地点が5時方向
-        }else if(mouse0.y < -1 / R3 * mouse0.x && mouse0.x > 0){
-            if(dy < -R3 * dx && dy > 1 / R3 * dx || dy > -R3 * dx && dy < 1 / R3 * dx){
-                turn("y", 1);
-            }else{
-                turn("z", 1);
-            }
-        }
-    }
-}
-
-function onDocumentMouseOut(e){
-    //console.log("onDocumentMouseOut");
-    if(clickFlg){
-        onDocumentMouseUp(e);
-    }
-}
-
-function xyzRound(arg){
-    arg.x = Math.round(arg.x);
-    arg.y = Math.round(arg.y);
-    arg.z = Math.round(arg.z);
-}
-
-function qcorrect(qelement){
-    var elm = Math.round(qelement * 10) / 10;
-    if([0, 1, -1, 0.5, -0.5].includes(elm)){
-        return elm;
-    }else if(elm > 0){
-        return 1 / Math.sqrt(2);
-    }else if(elm < 0){
-        return -1 / Math.sqrt(2);
-    }
-    return qelement;
-}
-       
-function turnAllCubes(axis, dir){
-    var rad = 0.5 * Math.PI * rate;
-    for(var i = 0; i < c0.length; i++){
-        var p = cube[c0[i].x][c0[i].y][c0[i].z].position;
-        var q = cube[c0[i].x][c0[i].y][c0[i].z].quaternion;
-        if(axis == "x"){
-            p.y = c0[i].p0.y * Math.cos(dir * rad) - c0[i].p0.z * Math.sin(dir * rad);
-            p.z = c0[i].p0.z * Math.cos(dir * rad) + c0[i].p0.y * Math.sin(dir * rad);
-        }else if(axis == "y"){
-            p.z = c0[i].p0.z * Math.cos(dir * rad) - c0[i].p0.x * Math.sin(dir * rad);
-            p.x = c0[i].p0.x * Math.cos(dir * rad) + c0[i].p0.z * Math.sin(dir * rad);
-        }else if(axis == "z"){
-            p.x = c0[i].p0.x * Math.cos(dir * rad) - c0[i].p0.y * Math.sin(dir * rad);
-            p.y = c0[i].p0.y * Math.cos(dir * rad) + c0[i].p0.x * Math.sin(dir * rad);
-        }
-        THREE.Quaternion.slerp(c0[i].q0, c0[i].q1, q, rate);
-    }
 }
 
 function startTime(){
