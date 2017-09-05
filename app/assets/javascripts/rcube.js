@@ -1,6 +1,5 @@
 /*
 課題
-・CNUMを大きくしてもカクカクにならないように計算量削減
 ・スタートボタン（シャッフル）
 ・元に戻すボタン
 ・ログイン機能
@@ -9,6 +8,7 @@
 ・デザインを整える
 ・６面そろえるチュートリアル
 ・画像ではなくthree.jsの機能で表面の色を描くようにする
+・CNUMを大きくしてもカクカクにならないように計算量削減
 */
 
 // parameters
@@ -36,7 +36,6 @@ var dragFlg = false;
 var turnFinishFlg = true;
 var clickedPlane;
 var clickedPlaneNormal;
-var timeFlg = true;
 var turnAxis = "";
 var turnDir = 0;
 var tmr2;
@@ -101,7 +100,6 @@ window.onload = function() {
             }
         }
     }
-//console.log(cube);
 
     // initial render
     var tmr = setInterval(function(){
@@ -239,10 +237,6 @@ function onDocumentMouseDown(e){
         return;
     }
     clickFlg = true;
-    // time
-    if(timeFlg){
-        startTime();
-    }
     // find clicked face
     mouse0.x = (e.pageX / SCALE) * 2 - 1;
     mouse0.y = -(e.pageY / SCALE) * 2 + 1;
@@ -364,7 +358,6 @@ function turn(){
                 q.z = qcorrect(q.z);
                 q.w = qcorrect(q.w);
             }
-            judgeClear();
             c0 = [];
         }
         rate = rate > 0 ? rate + MSPF * SPEED : rate - MSPF * SPEED;
@@ -401,71 +394,5 @@ function turnAllCubes(){
         THREE.Quaternion.slerp(c0[i].q0, c0[i].q1, q, rate);
     }
 }
-
-function judgeClear(){
-    var c = cube[0][0][0];
-    var normal = c.children[0].normal.clone();
-    normal.applyQuaternion(c.quaternion);
-    var target0 = Math.round(normal.x) + ", " + Math.round(normal.y) + ", " + Math.round(normal.z);
-    normal = c.children[1].normal.clone();
-    normal.applyQuaternion(c.quaternion);
-    target0 += ", " + Math.round(normal.x) + ", " + Math.round(normal.y) + ", " + Math.round(normal.z);
-    for(var x = 0; x < CNUM; x++){
-        for(var y = 0; y < CNUM; y++){
-            for(var z = 0; z < CNUM; z++){
-                var c = cube[x][y][z];
-                if(z == 0 && y != 0 && y != CNUM - 1 && x != 0 && x != CNUM - 1 ||
-                   x == CNUM - 1 && y != 0 && y != CNUM - 1 && z != 0 && z != CNUM - 1 ||
-                   z == CNUM - 1 && y != 0 && y != CNUM - 1 && x != 0 && x != CNUM - 1 ||
-                   x == 0 && y != 0 && y != CNUM - 1 && z != 0 && z != CNUM - 1 ||
-                   y == CNUM - 1 && z != 0 && z != CNUM - 1 && x != 0 && x != CNUM - 1 ||
-                   y == 0 && z != 0 && z != CNUM - 1 && x != 0 && x != CNUM - 1){ // edge
-                    normal = c.children[c.colorFaceIndex].normal.clone();
-                    normal.applyQuaternion(c.quaternion);
-                    var target = Math.round(normal.x) + ", " + Math.round(normal.y) + ", " + Math.round(normal.z);
-                    var normalc = cube[0][0][0].children[cube[x][y][z].colorFaceIndex].normal.clone();
-                    normalc.applyQuaternion(cube[0][0][0].quaternion);
-                    var targetc = Math.round(normal.x) + ", " + Math.round(normal.y) + ", " + Math.round(normal.z);
-                    if(target != targetc){
-                        return;
-                    }
-                } else { //not edge
-                    normal = c.children[0].normal.clone();
-                    normal.applyQuaternion(c.quaternion);
-                    var target = Math.round(normal.x) + ", " + Math.round(normal.y) + ", " + Math.round(normal.z);
-                    normal = c.children[1].normal.clone();
-                    normal.applyQuaternion(c.quaternion);
-                    target += ", " + Math.round(normal.x) + ", " + Math.round(normal.y) + ", " + Math.round(normal.z);
-                    if(target != target0){
-                        return;
-                    }
-                }
-            }
-        }
-    }
-    stopTime();
-    //alert("clear");
-    console.log("clear");
-}
-
-function startTime(){
-    timeFlg = false;
-    t0 = new Date();
-    tmr2 = setInterval(function(){
-        var t = new Date().getTime() - t0.getTime();
-        var h = Math.floor(t / 3600000);
-        var m = Math.floor((t - h * 3600000) / 60000);
-        var s = Math.floor((t - h * 3600000 - m * 60000) / 1000);
-        var ms = t - h * 3600000 - m * 60000 - s * 1000;
-        var disptime = ("0" + m).slice(-2) + "'" + ("0" + s).slice(-2) + '"' + ("00" + ms).slice(-3);
-        document.getElementById('time').innerHTML = disptime;
-    }, 1)
-}
-
-function stopTime(){
-    timeFlg = true;
-    clearInterval(tmr2);
-}
-
 
 
