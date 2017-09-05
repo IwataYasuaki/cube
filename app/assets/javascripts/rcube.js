@@ -12,7 +12,7 @@
 */
 
 // parameters
-var CNUM = 10; // 1辺のキューブ数
+var CNUM = 3; // 1辺のキューブ数
 var SIZE = 42; // キューブの大きさ
 var SPEED = 0.005; // 回転速度
 var FPS = 60; // 回転時のFramesPerSecond
