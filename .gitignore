@@ -11,3 +11,7 @@
 /log/*
 !/log/.keep
 /tmp
+
+app/assets/javascripts/rcube.js.backup*
+startServer.sh
+
