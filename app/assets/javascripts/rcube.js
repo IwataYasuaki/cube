@@ -109,10 +109,16 @@ window.onload = function() {
             clearInterval(tmr);
             FLD = document.getElementById('canvas-frame');
             var ww = window.innerWidth;
-            var wh = window.innerHeight;
+            var wh = window.innerHeight - 200;
+            //FLD.style.height = window.innerHeight - 200;
+            //console.log(FLD.clientWidth);
+            //console.log(window.innerHeight);
+            //console.log(FLD.clientHeight);
+            //var ww = FLD.style.width;
+            //var wh = FLD.style.height;
             SCALE = ww > wh ? wh : ww;
-            FLD.style.width = SCALE + "px";
-            FLD.style.height = SCALE + "px";
+            FLD.style.width = (SCALE + 2) + "px";
+            FLD.style.height = (SCALE + 2) + "px";
             camera = new THREE.PerspectiveCamera(1, 1, 1000, 5000);
             camera.position.set(ZOOM, ZOOM, ZOOM);
             camera.lookAt({x: 0, y: 0, z: 0});
@@ -127,7 +133,7 @@ window.onload = function() {
             renderer = new THREE.WebGLRenderer({antialias: true});
             renderer.setSize(SCALE, SCALE);
             FLD.appendChild(renderer.domElement);
-            renderer.setClearColor(0xffffff, 1.0);
+            renderer.setClearColor(0xffddff, 1.0);
             renderer.render(scene, camera);
         }
     }, 10);
@@ -152,8 +158,8 @@ function onDocumentMouseMove(e){
     e.preventDefault();
     // クリック中かつ回転アニメ済の場合
     if(clickFlg && turnFinishFlg){ 
-        mouse1.x = (e.pageX / SCALE) * 2 - 1;
-        mouse1.y = -(e.pageY / SCALE) * 2 + 1;
+        mouse1.x = (e.layerX / SCALE) * 2 - 1;
+        mouse1.y = -(e.layerY / SCALE) * 2 + 1;
         var dx = mouse1.x - mouse0.x;
         var dy = mouse1.y - mouse0.y;
         // キューブをクリック中の場合
@@ -244,11 +250,11 @@ function onDocumentMouseDown(e){
         startTime();
     }
     // find clicked face
-    mouse0.x = (e.pageX / SCALE) * 2 - 1;
-    mouse0.y = -(e.pageY / SCALE) * 2 + 1;
+    mouse0.x = (e.layerX / SCALE) * 2 - 1;
+    mouse0.y = -(e.layerY / SCALE) * 2 + 1;
     var mousez = new THREE.Vector2();
-    mousez.x = (e.pageX / SCALE) * 2 - 1;
-    mousez.y = -(e.pageY / SCALE) * 2 + 1;
+    mousez.x = (e.layerX / SCALE) * 2 - 1;
+    mousez.y = -(e.layerY / SCALE) * 2 + 1;
     raycaster.setFromCamera(mousez, camera);
     var intersects = raycaster.intersectObjects(planes);
     if(intersects.length > 0){

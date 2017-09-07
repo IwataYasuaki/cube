@@ -1,12 +1,25 @@
 body {
     -webkit-text-size-adjust: 100%;
     margin: 0px;
+    padding-top: 5rem;
     /*overflow: hidden;*/
 }
-
-div#canvas-frame {
-    border: 0px solid;
-    cursor: pointer;
+div#wrapper {
+    margin: auto;
+    max-width: 600px;
 }
-
+span#time {
+    font-family: Consolas, 'Courier New', Courier, Monaco, monospace;
+    padding: .5rem .75rem;
+    vertical-align: middle;
+}
+div#canvas-frame {
+    border: 1px solid;
+    margin: 1rem;
+    cursor: pointer;
+    width: 100%;
+}
+canvas {
+    margin: auto;
+}
 
