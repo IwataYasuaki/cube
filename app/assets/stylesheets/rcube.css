@@ -1,21 +1,22 @@
 body {
     -webkit-text-size-adjust: 100%;
     margin: 0px;
-    padding-top: 5rem;
     /*overflow: hidden;*/
 }
 div#wrapper {
     margin: auto;
+    padding: 56px 0px 0px 0px;
     max-width: 600px;
 }
 span#time {
     font-family: Consolas, 'Courier New', Courier, Monaco, monospace;
     padding: .5rem .75rem;
+    margin: 0rem .5rem;
     vertical-align: middle;
 }
 div#canvas-frame {
-    border: 1px solid;
-    margin: 1rem;
+    border: 0px solid;
+    margin: 0px;
     cursor: pointer;
     width: 100%;
 }

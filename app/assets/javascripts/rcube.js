@@ -108,17 +108,22 @@ window.onload = function() {
         if(nloaded >= 7){
             clearInterval(tmr);
             FLD = document.getElementById('canvas-frame');
-            var ww = window.innerWidth;
-            var wh = window.innerHeight - 200;
+            //var ww = window.innerWidth;
+            var ww = FLD.clientWidth;
+            var wh = window.innerHeight - 100;
             //FLD.style.height = window.innerHeight - 200;
+            console.log(document.getElementById('wrapper').clientWidth);
             //console.log(FLD.clientWidth);
             //console.log(window.innerHeight);
             //console.log(FLD.clientHeight);
             //var ww = FLD.style.width;
             //var wh = FLD.style.height;
             SCALE = ww > wh ? wh : ww;
-            FLD.style.width = (SCALE + 2) + "px";
-            FLD.style.height = (SCALE + 2) + "px";
+            //document.getElementById('wrapper').style.width = (SCALE + 20) + "px";
+            //FLD.style.width = (SCALE + 2) + "px";
+            FLD.style.height = SCALE + "px";
+            //FLD.style.height = (SCALE + 2) + "px";
+            //SCALE = SCALE - 2;
             camera = new THREE.PerspectiveCamera(1, 1, 1000, 5000);
             camera.position.set(ZOOM, ZOOM, ZOOM);
             camera.lookAt({x: 0, y: 0, z: 0});
@@ -133,7 +138,7 @@ window.onload = function() {
             renderer = new THREE.WebGLRenderer({antialias: true});
             renderer.setSize(SCALE, SCALE);
             FLD.appendChild(renderer.domElement);
-            renderer.setClearColor(0xffddff, 1.0);
+            renderer.setClearColor(0xffffff, 1.0);
             renderer.render(scene, camera);
         }
     }, 10);
