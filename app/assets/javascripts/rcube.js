@@ -17,8 +17,11 @@ var SIZE = 42; // キューブの大きさ
 var SPEED = 0.005; // 回転速度
 var FPS = 60; // 回転時のFramesPerSecond
 var THREDRAG = 0.01; // 回転させるドラッグ距離閾値
+var SHUFFLENUM = 20; // シャッフル回数
+var SHUFFLESPEED = 10; // シャッフル速度
 
 // constants
+var LogFlg = true;
 var camera, scene, renderer;
 var SCALE; // canvasの横幅および高さ
 var cube = [[[]]];
@@ -36,7 +39,7 @@ var dragFlg = false;
 var turnFinishFlg = true;
 var clickedPlane;
 var clickedPlaneNormal;
-var timeFlg = true;
+var timeFlg = false;
 var turnAxis = "";
 var turnDir = 0;
 var tmr2;
@@ -48,6 +51,7 @@ var R3 = Math.sqrt(3);
 var black, green, blue, yellow, white, orange, red;
 
 window.onload = function() {
+    if(LogFlg) console.log("onload()");
     raycaster = new THREE.Raycaster();
     mouse0 = new THREE.Vector2();
     mouse1 = new THREE.Vector2();
@@ -112,7 +116,7 @@ window.onload = function() {
             var ww = FLD.clientWidth;
             var wh = window.innerHeight - 100;
             //FLD.style.height = window.innerHeight - 200;
-            console.log(document.getElementById('wrapper').clientWidth);
+            //console.log(document.getElementById('wrapper').clientWidth);
             //console.log(FLD.clientWidth);
             //console.log(window.innerHeight);
             //console.log(FLD.clientHeight);
@@ -135,6 +139,7 @@ window.onload = function() {
             FLD.addEventListener('touchmove'  , onDocumentMouseMove, false);
             FLD.addEventListener('touchstart' , onDocumentMouseDown, false);
             FLD.addEventListener('touchend'   , onDocumentMouseUp  , false);
+            document.getElementById('shuffle').addEventListener('click', shuffle, false);
             renderer = new THREE.WebGLRenderer({antialias: true});
             renderer.setSize(SCALE, SCALE);
             FLD.appendChild(renderer.domElement);
@@ -159,7 +164,36 @@ window.onload = function() {
     }
 }
 
+function shuffle(){
+    if(LogFlg) console.log("shuffle()");
+    if(confirm("shuffle?")){
+        SPEED = SPEED * SHUFFLESPEED;
+        var axis = ["x", "y", "z"];
+        var n = 0;
+        var anm = setInterval(function(){
+            if(turnFinishFlg){
+                if(LogFlg) console.log("shuffle()-1");
+                n++;
+                var axis_random = axis[Math.floor(Math.random() * axis.length)];
+                var dir_random = Math.floor(Math.random() * 2) * 2 - 1;
+                var val_random = Math.floor(Math.random() * 3);
+                dragTurnAction(axis_random, dir_random, 0.01, val_random);
+                clickFlg = true;
+                turnAction();
+                if(n > SHUFFLENUM){
+                    clearInterval(anm);
+                    SPEED = SPEED / SHUFFLESPEED;
+                    resetTime();
+                    $("span#time").removeClass("bg-secondary");
+                }
+            }
+        }, 10);
+    }else{
+    }
+}
+
 function onDocumentMouseMove(e){
+    if(LogFlg) console.log("onDocumentMouseMove()");
     e.preventDefault();
     // クリック中かつ回転アニメ済の場合
     if(clickFlg && turnFinishFlg){ 
@@ -179,60 +213,60 @@ function onDocumentMouseMove(e){
             // x軸に垂直な面をクリックした場合
             if(clickedPlaneNormal.x == 1){
                 if(dy < R3 * dx && dy > -1 / R3 * dx || dy > R3 * dx && dy < -1 / R3 * dx){
-                    dragTurnAction("y", 1, 0.5 * R3 * dx + 0.5 * dy);
+                    dragTurnAction("y", 1, 0.5 * R3 * dx + 0.5 * dy, clickedPlane.parent.positionLogical.y);
                 }else{
-                    dragTurnAction("z", 1, dy);
+                    dragTurnAction("z", 1, dy, clickedPlane.parent.positionLogical.z);
                 }
             }else if(clickedPlaneNormal.y == 1){
                 if(dx > 0 && dy > 0 || dx < 0 && dy < 0){
-                    dragTurnAction("x", -1, 0.5 * R3 * dx + 0.5 * dy);
+                    dragTurnAction("x", -1, 0.5 * R3 * dx + 0.5 * dy, clickedPlane.parent.positionLogical.x);
                 }else{
-                    dragTurnAction("z", -1, 0.5 * R3 * dx - 0.5 * dy);
+                    dragTurnAction("z", -1, 0.5 * R3 * dx - 0.5 * dy, clickedPlane.parent.positionLogical.z);
                 }
             }else if(clickedPlaneNormal.z == 1){
                 if(dy < 1 / R3 * dx && dy > -R3 * dx || dy > 1 / R3 * dx && dy < -R3 * dx){
-                    dragTurnAction("y", 1, 0.5 * R3 * dx - 0.5 * dy);
+                    dragTurnAction("y", 1, 0.5 * R3 * dx - 0.5 * dy, clickedPlane.parent.positionLogical.y);
                 }else{
-                    dragTurnAction("x", -1, dy);
+                    dragTurnAction("x", -1, dy, clickedPlane.parent.positionLogical.x);
                 }
             }
         // キューブの外をクリック中の場合
         }else if (true){
             if(mouse0.y < 1 / R3 * mouse0.x && mouse0.y > -1 / R3 * mouse0.x){
                 if(dx > 0 && dy > 0 || dx < 0 && dy < 0){
-                    dragTurnAction("y", 1, 0.5 * R3 * dx + 0.5 * dy);
+                    dragTurnAction("y", 1, 0.5 * R3 * dx + 0.5 * dy, -1);
                 }else{
-                    dragTurnAction("z", -1, 0.5 * R3 * dx - 0.5 * dy);
+                    dragTurnAction("z", -1, 0.5 * R3 * dx - 0.5 * dy, -1);
                 }
             }else if(mouse0.y > 1 / R3 * mouse0.x && mouse0.x > 0){
                 if(dy < R3 * dx && dy > -1 / R3 * dx || dy > R3 * dx && dy < -1 / R3 * dx){
-                    dragTurnAction("x", -1, 0.5 * R3 * dx + 0.5 * dy);
+                    dragTurnAction("x", -1, 0.5 * R3 * dx + 0.5 * dy, -1);
                 }else{
-                    dragTurnAction("z", 1, dy);
+                    dragTurnAction("z", 1, dy, -1);
                 }
             }else if(mouse0.y > -1 / R3 * mouse0.x && mouse0.x < 0){
                 if(dy < -R3 * dx && dy > 1 / R3 * dx || dy > -R3 * dx && dy < 1 / R3 * dx){
-                    dragTurnAction("z", -1, 0.5 * R3 * dx - 0.5 * dy);
+                    dragTurnAction("z", -1, 0.5 * R3 * dx - 0.5 * dy, -1);
                 }else{
-                    dragTurnAction("x", -1, dy);
+                    dragTurnAction("x", -1, dy, -1);
                 }
             }else if(mouse0.y > 1 / R3 * mouse0.x && mouse0.y < -1 / R3 * mouse0.x){
                 if(dx > 0 && dy > 0 || dx < 0 && dy < 0){
-                    dragTurnAction("x", -1, 0.5 * R3 * dx + 0.5 * dy);
+                    dragTurnAction("x", -1, 0.5 * R3 * dx + 0.5 * dy, -1);
                 }else{
-                    dragTurnAction("y", 1, 0.5 * R3 * dx - 0.5 * dy);
+                    dragTurnAction("y", 1, 0.5 * R3 * dx - 0.5 * dy, -1);
                 }
             }else if(mouse0.y < 1 / R3 * mouse0.x && mouse0.x < 0){
                 if(dy < R3 * dx && dy > -1 / R3 * dx || dy > R3 * dx && dy < -1 / R3 * dx){
-                    dragTurnAction("y", 1, 0.5 * R3 * dx + 0.5 * dy);
+                    dragTurnAction("y", 1, 0.5 * R3 * dx + 0.5 * dy, -1);
                 }else{
-                    dragTurnAction("x", -1, dy);
+                    dragTurnAction("x", -1, dy, -1);
                 }
             }else if(mouse0.y < -1 / R3 * mouse0.x && mouse0.x > 0){
                 if(dy < -R3 * dx && dy > 1 / R3 * dx || dy > -R3 * dx && dy < 1 / R3 * dx){
-                    dragTurnAction("y", 1, 0.5 * R3 * dx - 0.5 * dy);
+                    dragTurnAction("y", 1, 0.5 * R3 * dx - 0.5 * dy, -1);
                 }else{
-                    dragTurnAction("z", 1, dy);
+                    dragTurnAction("z", 1, dy, -1);
                 }
             }
         }
@@ -244,16 +278,12 @@ function onDocumentMouseMove(e){
 }
 
 function onDocumentMouseDown(e){
-    //console.log("onDocumentMouseDown");
+    if(LogFlg) console.log("onDocumentMouseDown()");
     e.preventDefault();
     if(!turnFinishFlg){
         return;
     }
     clickFlg = true;
-    // time
-    if(timeFlg){
-        startTime();
-    }
     // find clicked face
     mouse0.x = (e.layerX / SCALE) * 2 - 1;
     mouse0.y = -(e.layerY / SCALE) * 2 + 1;
@@ -265,23 +295,28 @@ function onDocumentMouseDown(e){
     if(intersects.length > 0){
         pickFlg = true;
         clickedPlane = intersects[0].object;
+        // time
+        if(timeFlg){
+            startTime();
+        }
     }
 }
 
 function onDocumentMouseUp(e){
-    //console.log("onDocumentMouseUp");
+    if(LogFlg) console.log("onDocumentMouseUp()");
     e.preventDefault();
     turnAction();
 }
 
 function onDocumentMouseOut(e){
-    //console.log("onDocumentMouseOut");
+    if(LogFlg) console.log("onDocumentMouseOut()");
     if(clickFlg){
         turnAction();
     }
 }
 
-function dragTurnAction(axis, dir, rateArg){
+function dragTurnAction(axis, dir, rateArg, val){
+    if(LogFlg) console.log("dragTurnAction()");
     if(turnAxis != axis && c0.length > 0){
         for(var i = 0; i < c0.length; i++){
             cube[c0[i].x][c0[i].y][c0[i].z].position.copy(c0[i].p0);
@@ -291,24 +326,16 @@ function dragTurnAction(axis, dir, rateArg){
     }
     turnAxis = axis;
     rate = rateArg;
-    if(pickFlg){
-        switch(turnAxis){
-            case "x": dragTurn(clickedPlane.parent.positionLogical.x, dir);
-            case "y": dragTurn(clickedPlane.parent.positionLogical.y, dir);
-            case "z": dragTurn(clickedPlane.parent.positionLogical.z, dir);
-        }
-    }else{
-        dragTurn(-1, dir);
-    }
+    dragTurn(val, dir);
 }
 
 function dragTurn(val, dir){
+    if(LogFlg) console.log("dragTurn()");
     turnDir = dir;
     if(!dragFlg){
         // calculate goal of quaternion (q1)
         dragFlg = true;
         c0 = [];
-        var tval = (val - 1 - DLT) * CSIZE;
         for(var x = 0; x < CNUM; x++){
             for(var y = 0; y < CNUM; y++){
                 for(var z = 0; z < CNUM; z++){
@@ -338,11 +365,14 @@ function dragTurn(val, dir){
 }
 
 function turnAction(){
+    if(LogFlg) console.log("turnAction()");
     //console.log("turnAction");
     if(!turnFinishFlg){
+        if(LogFlg) console.log("turnAction()-1");
         return;
     }
     if(!clickFlg){
+        if(LogFlg) console.log("turnAction()-2");
         return;
     }
     clickFlg = false;
@@ -352,6 +382,7 @@ function turnAction(){
 }
 
 function turn(){
+    if(LogFlg) console.log("turn()");
     turnFinishFlg = false;
     // animate turn
     var anm = setInterval(function(){
@@ -383,6 +414,7 @@ function turn(){
 }
 
 function qcorrect(qelement){
+    //if(LogFlg) console.log("qcorrect()");
     var elm = Math.round(qelement * 10) / 10;
     if([0, 1, -1, 0.5, -0.5].includes(elm)){
         return elm;
@@ -395,6 +427,7 @@ function qcorrect(qelement){
 }
        
 function turnAllCubes(){
+    if(LogFlg) console.log("turnAllCubes()");
     var rad = 0.5 * Math.PI * rate;
     for(var i = 0; i < c0.length; i++){
         var p = cube[c0[i].x][c0[i].y][c0[i].z].position;
@@ -414,6 +447,7 @@ function turnAllCubes(){
 }
 
 function judgeClear(){
+    if(LogFlg) console.log("judgeClear()");
     var c = cube[0][0][0];
     var normal = c.children[0].normal.clone();
     normal.applyQuaternion(c.quaternion);
@@ -454,12 +488,15 @@ function judgeClear(){
             }
         }
     }
-    stopTime();
+    if(!$("span#time").hasClass("bg-secondary")){
+        stopTime();
+    }
     //alert("clear");
     console.log("clear");
 }
 
 function startTime(){
+    if(LogFlg) console.log("startTime()");
     timeFlg = false;
     t0 = new Date();
     tmr2 = setInterval(function(){
@@ -474,9 +511,14 @@ function startTime(){
 }
 
 function stopTime(){
+    if(LogFlg) console.log("stopTime()");
     timeFlg = true;
     clearInterval(tmr2);
 }
 
-
+function resetTime(){
+    if(LogFlg) console.log("resetTime()");
+    stopTime();
+    document.getElementById('time').innerHTML = "00'00\"000";
+}
 
