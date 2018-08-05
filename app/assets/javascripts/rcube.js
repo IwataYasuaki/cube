@@ -52,6 +52,7 @@ var black, green, blue, yellow, white, orange, red;
 
 window.onload = function() {
     if(LogFlg) console.log("onload()");
+
     raycaster = new THREE.Raycaster();
     mouse0 = new THREE.Vector2();
     mouse1 = new THREE.Vector2();

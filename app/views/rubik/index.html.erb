@@ -1,20 +1,21 @@
 <div id="wrapper">
 
 <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
-  <a class="navbar-brand" href="#">RCUBE</a>
+  <%= link_to 'RCUBE', root_path, :class => 'navbar-brand', :id => 'logo' %>
   <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
   </button>
   <div class="collapse navbar-collapse" id="navbarsExampleDefault">
     <ul class="navbar-nav mr-auto">
       <li class="nav-item active">
-        <a class="nav-link" href="#">home <span class="sr-only">(current)</span></a>
+        <%= link_to 'home', root_path, :class => 'nav-link'%>
+        <!--<a class="nav-link" href="temp">home <span class="sr-only">(current)</span></a>-->
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="#">login</a>
+        <%= link_to 'login', rubik_login_path, :class => 'nav-link'%>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="#">setting</a>
+        <%= link_to 'setting', rubik_setting_path, :class => 'nav-link'%>
       </li>
     </ul>
   </div>
