@@ -50,7 +50,7 @@ var planes = [];
 var R3 = Math.sqrt(3);
 var black, green, blue, yellow, white, orange, red;
 
-window.onload = function() {
+$(document).ready( function(){
     if(LogFlg) console.log("onload()");
 
     raycaster = new THREE.Raycaster();
@@ -163,7 +163,7 @@ window.onload = function() {
         cube[x][y][z].add(c);
         planes.push(c);
     }
-}
+})
 
 function shuffle(){
     if(LogFlg) console.log("shuffle()");
